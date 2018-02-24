@@ -110,6 +110,14 @@ architecture Behavioral of usb_32bit is
 		out_clkB		: out	std_logic);
 	end component;
 	
+	component signal_sync is
+	port(
+		clkA			: in	std_logic;
+		clkB			: in	std_logic;
+		SignalIn_clkA	: in	std_logic;
+		SignalOut_clkB	: out	std_logic);
+	end component;
+	
 begin
 
 USB_WBUSY			<=	WBUSY; 
@@ -144,12 +152,12 @@ port map(
 	in_clkA  => DONE,
 	out_clkB => USB_DONE);
 	
-xUSB_START_FLAG : flag_sync
+xUSB_START_SYNC : signal_sync
 port map(
 	clkA		=> CORE_CLK,
 	clkB  	=> USB_IFCLK,
-	in_clkA  => USB_START_WR,
-	out_clkB => USB_START_WR_int);
+	SignalIn_clkA  => USB_START_WR,
+	SignalOut_clkB => USB_START_WR_int);
 	
 proc_sync_instruct : process(USB_RESET, USB_INSTRUCT_RDY, CORE_CLK)
 begin

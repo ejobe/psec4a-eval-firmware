@@ -34,6 +34,7 @@ entity registers is
 
 --////////////////////////////////////////////////////////////////////////////
 architecture rtl of registers is
+signal write_rdy_reg : std_logic_vector(1 downto 0);
 
 begin
 --/////////////////////////////////////////////////////////////////
@@ -42,6 +43,7 @@ proc_write_register : process(rst_i, clk_i, write_rdy_i, write_reg_i, registers_
 begin
 
 	if rst_i = '1' then
+		write_rdy_reg <= (others=>'0');
 		--////////////////////////////////////////////////////////////////////////////
 		--//for a few registers, only set defaults on power up:
 		if rst_powerup_i = '1' then
@@ -85,6 +87,8 @@ begin
 		registers_io(34) <= x"000000";
 		registers_io(39) <= x"000000"; 
 		
+		registers_io(64) <= x"000000"; --// sw trigger
+		
 		registers_io(83) <= x"000000";  --//trig sign (LSB)
 		registers_io(84) <= x"000000";  --//dll speed select(LSB)
 		registers_io(85) <= x"000000";  --//reset_xfer enable (LSB)
@@ -116,14 +120,14 @@ begin
 		address_o <= x"00";
 		
 	elsif rising_edge(clk_i) then 
-
+		write_rdy_reg <= write_rdy_reg(0) & write_rdy_i;
 		--//initiate a read
-		if write_rdy_i = '1' and write_reg_i(31 downto 24) = x"6D" then
+		if write_rdy_reg(1) = '1' and write_reg_i(31 downto 24) = x"6D" then
 			read_reg_o <=  write_reg_i(7 downto 0) & registers_io(to_integer(unsigned(write_reg_i(7 downto 0))));
 			address_o <= x"47";  --//initiate a read
 			
 		--//write a register
-		elsif write_rdy_i = '1' and write_reg_i(31 downto 24) > x"28" then  --//read/write registers
+		elsif write_rdy_reg(1) = '1' and write_reg_i(31 downto 24) > x"28" then  --//read/write registers
 			registers_io(to_integer(unsigned(write_reg_i(31 downto 24)))) <= write_reg_i(23 downto 0);
 			address_o <= write_reg_i(31 downto 24);
 			

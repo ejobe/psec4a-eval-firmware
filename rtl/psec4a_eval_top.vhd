@@ -62,6 +62,7 @@ signal clk_25MHz_sig		: 	std_logic;
 signal clk_100kHz_sig 	:	std_logic; 
 signal clk_1Hz_sig		: 	std_logic;
 signal clk_10Hz_sig		:	std_logic;
+signal clk_usb_48Mhz		:	std_logic;
 
 signal usb_done_sig		:	std_logic;
 signal usb_slwr_sig		:	std_logic;
@@ -138,18 +139,28 @@ port map(
 	c0			=> clk_25MHz_sig,
 	c1			=> clk_100kHz_sig,
 	locked	=> open);
+	
+--xPLL1 : entity work.pll1
+--port map(
+--	areset	=> '0',
+--	inclk0	=> USB_IFCLK,
+--	c0			=> clk_usb_48Mhz,
+--	locked	=> open);
+
+clk_usb_48Mhz <= USB_IFCLK;
+USB_RDY(1) <= usb_slwr_sig;
 
 xUSB : entity work.usb_32bit
 port map(
-	CORE_CLK				=> clk_25MHz_sig,
-	USB_IFCLK			=> USB_IFCLK,	
+	CORE_CLK				=> clk_usb_48Mhz, --clk_25MHz_sig,
+	USB_IFCLK			=> clk_usb_48Mhz,	
 	USB_RESET    		=> global_reset_sig,  
 	USB_BUS  			=> USB_FD,  
 	FPGA_DATA			=> usb_dataout_sig, 
    USB_FLAGB    		=> USB_CTL(1),		
    USB_FLAGC    		=> USB_CTL(2),		
 	USB_START_WR		=> usb_start_wr_sig,		
-	USB_NUM_WORDS		=> x"0004",
+	USB_NUM_WORDS		=> x"0002",
    USB_DONE  			=> usb_done_sig,	   
    USB_PKTEND    		=> USB_PA(6),	
    USB_SLWR  			=> usb_slwr_sig,		
@@ -166,20 +177,21 @@ xREGISTERS : entity work.registers
 port map(
 		rst_powerup_i	=> reset_pwrup_sig,	
 		rst_i				=> global_reset_sig,
-		clk_i				=> clk_25MHz_sig,
+		clk_i				=> clk_usb_48Mhz, --clk_25MHz_sig,
 		write_reg_i		=> usb_instr_sig,
 		write_rdy_i		=> usb_instr_rdy_sig,
 		read_reg_o 		=> readout_reg_sig,
 		registers_io	=> register_array,
 		address_o		=> reg_addr_sig);
 		
-xRDOUT_CNTRL : entity work.rdout_controller 
+xRDOUT_CNTRL : entity work.rdout_controller_v2 
 	port map(
 		rst_i					=> global_reset_sig,	
-		clk_i					=> clk_25MHz_sig,					
+		clk_i					=> clk_usb_48Mhz, --clk_25MHz_sig,					
 		rdout_reg_i			=> readout_reg_sig,	
 		reg_adr_i			=> reg_addr_sig,	
-		registers_i			=> register_array,	      
+		registers_i			=> register_array,	   
+		usb_slwr_i			=> usb_slwr_sig,
 		tx_rdy_o				=> usb_start_wr_sig,	
 		tx_ack_i				=> usb_done_sig,	
 		rdout_fpga_data_o	=> usb_dataout_sig);	
@@ -213,6 +225,6 @@ port map(
 		
 led_0 <= not global_reset_sig;
 led_1 <= clk_10Hz_sig;
-led_2 <= psec4a_dllspeed_o;
+led_2 <= not usb_start_wr_sig;
 
 end rtl;

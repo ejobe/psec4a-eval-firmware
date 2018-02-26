@@ -91,15 +91,6 @@ begin
 		psec4a_latchsel_o <= "0110";
 	end if;
 end process;
---psec4a_sle_o <= clk_100kHz_sig;
---psec4a_sclk_o <= '0';
-
-psec4a_compsel_o <= "000";
-psec4a_chansel_o <= "000";
-psec4a_xferadr_o <= "0000";
-psec4a_read_clk_o <= '0';
-psec4a_ringosc_en_o <= '0';
-psec4a_rampstart_o <= '1';
 
 xCLK_GEN_10Hz : entity work.Slow_Clocks
 generic map(clk_divide_by => 5000)
@@ -149,6 +140,26 @@ port map(
 
 clk_usb_48Mhz <= USB_IFCLK;
 USB_RDY(1) <= usb_slwr_sig;
+
+xPSEC4A_CNTRL : entity work.psec4a_core 
+port map(
+	rst_i				=> global_reset_sig,
+	clk_i				=> clk_usb_48Mhz,
+	clk_mezz_i		=> psec4a_write_clk_i,
+	registers_i		=> register_array,
+	
+	dll_start_o		=> psec4a_dllstart_o,
+	xfer_adr_o		=> psec4a_xferadr_o,
+	ramp_o			=> psec4a_rampstart_o,
+	ring_osc_en_o	=> psec4a_ringosc_en_o,
+	comp_sel_o		=> psec4a_compsel_o,
+	latchsel_o		=> open, --//needs to be merged w/ latch sel decoder
+	latch_transp_o	=> open, --//needs to be merged w/ latch sel decoder
+	clear_adc_o		=> open, --//needs to be merged w/ latch sel decoder
+	rdout_clk_o		=> psec4a_read_clk_o,
+	chan_sel_o		=> psec4a_chansel_o,
+	psec4a_dat_i	=> psec4a_d_i,
+	psec4a_trig_i	=> psec4a_trigger_i);
 
 xUSB : entity work.usb_32bit
 port map(

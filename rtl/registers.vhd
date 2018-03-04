@@ -27,7 +27,7 @@ entity registers is
 		write_rdy_i		:	in		std_logic; --//data ready to be written in spi_slave
 		read_reg_o 		:	out 	std_logic_vector(define_register_size-1 downto 0); --//set data here to be read out
 		registers_io	:	inout	register_array_type;
-		--registers_dclk_o		:	out	register_array_type;  --//copy of registers on clk_data_i
+		readout_register_i : in read_register_array_type;
 		address_o		:	out	std_logic_vector(define_address_size-1 downto 0));
 		
 	end registers;
@@ -54,41 +54,15 @@ begin
 		
 		--////////////////////////////////////////////////////////////////////////////
 		--//read-only registers:
-		registers_io(4) <= x"000000"; 		
-		registers_io(5) <= x"000000"; 		
-		registers_io(6) <= x"000000";			
-		registers_io(7) <= x"000000"; 
-		registers_io(8) <= x"000000";
-		registers_io(9) <= x"000000";
-		registers_io(10) <= x"000000";
-		registers_io(11) <= x"000000";
-		registers_io(12) <= x"000000";
-		registers_io(13) <= x"000000";
-		registers_io(14) <= x"000000";
-		registers_io(15) <= x"000000";
-		registers_io(16) <= x"000000";
-		registers_io(17) <= x"000000";
-		registers_io(18) <= x"000000";
-		registers_io(19) <= x"000000";
-		registers_io(20) <= x"000000";
-		registers_io(21) <= x"000000";
-		registers_io(22) <= x"000000";
-		registers_io(23) <= x"000000";
-		registers_io(24) <= x"000000";
-		registers_io(25) <= x"000000";
-		registers_io(26) <= x"000000";
-		registers_io(27) <= x"000000";
-		registers_io(28) <= x"000000";
-		registers_io(29) <= x"000000";
-		registers_io(30) <= x"000000";
-		registers_io(31) <= x"000000";
-		registers_io(32) <= x"000000";
-		registers_io(33) <= x"000000";
-		registers_io(34) <= x"000000";
-		registers_io(39) <= x"000000"; 
+		for i in 0 to 31 loop
+			registers_io(4+i) <= (others=>'0');
+		end loop;
+
 		
 		registers_io(64) <= x"000000"; --// sw trigger
 		
+		registers_io(81) <= x"000000";  --//ro count target [needs updating]
+		registers_io(82) <= x"000000";  --//ro firmware feedback enable
 		registers_io(83) <= x"000000";  --//trig sign (LSB)
 		registers_io(84) <= x"000000";  --//dll speed select(LSB)
 		registers_io(85) <= x"000000";  --//reset_xfer enable (LSB)
@@ -133,6 +107,12 @@ begin
 			
 		else
 			address_o <= x"00";
+			--//assign readout only registers
+			for i in 0 to 31 loop
+				registers_io(4+i)(15 downto 0) <= readout_register_i(i);
+			end loop;
+			
+			
 			--////////////////////////////////////////////////
 			--//update status/system read-only registers
 			

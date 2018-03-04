@@ -19,11 +19,13 @@ use work.defs.all;
 
 entity psec4a_serial is
 port(
-	clk_i				:	in		std_logic;  --//clock for serial interface
+	clk_i				:	in		std_logic;  --//clock for psec4a serial interface
 	rst_i				:	in		std_logic;	
 	registers_i		:	in		register_array_type;
 	write_i			:	in		std_logic;
+	psec4a_ro_bit_i:	in		std_logic;
 	
+	psec4a_ro_count_o :	out		std_logic_vector(15 downto 0);
 	serial_clk_o	:	out	std_logic;
 	serial_le_o		:	out	std_logic;
 	serial_dat_o	:	out	std_logic);	
@@ -39,14 +41,24 @@ constant num_serial_clks : integer := psec4a_num_dacs * psec4a_dac_bits+num_nond
 signal flat_serial_array_meta : std_logic_vector(num_serial_clks-1 downto 0) := (others=>'1');
 signal flat_serial_array_reg : std_logic_vector(num_serial_clks-1 downto 0) := (others=>'1');
 
+signal feedback_rovcp_dac_value : std_logic_vector(psec4a_dac_bits-1 downto 0);
+signal enable_rovcp_feedback : std_logic;
+signal target_ro_counter_val : std_logic_vector(15 downto 0);
+signal current_ro_counter_val : std_logic_vector(15 downto 0);
+
 begin
 
 proc_get_dac_values : process(rst_i, clk_i)
 begin
 	if rising_edge(clk_i) then
-		flat_serial_array_reg <= flat_serial_array_meta;
-		--//assign DAC values to long serial array:
+		enable_rovcp_feedback <= registers_i(82)(0);
+		target_ro_counter_val <= registers_i(81)(15 downto 0);
+		psec4a_ro_count_o <= current_ro_counter_val;
 		
+		--//re-clock to safely register the serial bits on the psec4a serial clock
+		flat_serial_array_reg <= flat_serial_array_meta;
+		
+		--//assign DAC values to long serial array:
 		flat_serial_array_meta(0) <= registers_i(83)(0); --//trig_sign
 		flat_serial_array_meta(1) <= registers_i(85)(0); --//use_reset_xfer
 		flat_serial_array_meta(2) <= '0'; --// n/a
@@ -55,15 +67,35 @@ begin
 		flat_serial_array_meta(5) <= '0'; --// n/a
 
 		--//loop thru 10-bit DACs
-		for i in 0 to psec4a_num_dacs-1 loop
+		-------------------------------------------
+		--//handle the rovcp value separately, as it can be programmed by software OR the internal feedback lop
+		if enable_rovcp_feedback = '1' then
+			flat_serial_array_meta(num_nondac_bits+psec4a_dac_bits-1 downto num_nondac_bits) <= feedback_rovcp_dac_value; 
+		else 
+			flat_serial_array_meta(num_nondac_bits+psec4a_dac_bits-1 downto num_nondac_bits) <= registers_i(86)(psec4a_dac_bits-1 downto 0); 
+		end if;
+		--other DAC values:
+		for i in 1 to psec4a_num_dacs-1 loop		
 			flat_serial_array_meta(num_nondac_bits+psec4a_dac_bits*(i+1)-1 downto num_nondac_bits+psec4a_dac_bits*i)
 				<= registers_i(86+i)(psec4a_dac_bits-1 downto 0); 
 				--<= "1010011000";
 				--<= "1000000000";
 		end loop;
+		--------------------------------------------
 	end if;
 end process;
 
+--//feedback for the psec4a ring oscilator // enabled  using register 82
+xRINGOSC_FEEDBACK : entity work.wilkinson_feedback_loop
+port map(
+	ENABLE_FEEDBACK     	=> enable_rovcp_feedback,
+   RESET_FEEDBACK      	=> '0',
+   REFRESH_CLOCK       	=> write_i, 
+   DAC_SYNC_CLOCK      	=> write_i,
+   WILK_MONITOR_BIT    	=> psec4a_ro_bit_i,
+   DESIRED_COUNT_VALUE  => target_ro_counter_val,
+   CURRENT_COUNT_VALUE  => current_ro_counter_val,
+   DESIRED_DAC_VALUE    => feedback_rovcp_dac_value);
 
 xSPI_WRITE : entity work.spi_write(rtl)
 generic map(

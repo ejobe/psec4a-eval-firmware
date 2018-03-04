@@ -77,7 +77,12 @@ signal usb_dataout_sig	:  std_logic_vector(15 downto 0);
 
 signal refresh_clk_1Hz				: std_logic := '0';
 signal refresh_clk_counter_1Hz 	: std_logic_vector(19 downto 0);
+signal refresh_clk_10Hz				: std_logic := '0';
+signal refresh_clk_counter_10Hz 	: std_logic_vector(19 downto 0);
 signal REFRESH_CLK_MATCH_1HZ		: std_logic_vector(19 downto 0) := x"186A0";
+signal REFRESH_CLK_MATCH_10HZ		: std_logic_vector(19 downto 0) := x"02710";
+
+signal readout_register_array : read_register_array_type;
 --//---------------------------------------------------------------------------
 begin
 
@@ -119,6 +124,19 @@ begin
 				refresh_clk_1Hz <= '1';
 			when others =>
 				refresh_clk_1Hz <= '0';
+		end case;
+		
+		if refresh_clk_10Hz = '1' then
+			refresh_clk_counter_10Hz <= (others=>'0');
+		else
+			refresh_clk_counter_10Hz <= refresh_clk_counter_10Hz + 1;
+		end if;
+		--//pulse refresh when refresh_clk_counter = REFRESH_CLK_MATCH
+		case refresh_clk_counter_10Hz is
+			when REFRESH_CLK_MATCH_10HZ =>
+				refresh_clk_10Hz <= '1';
+			when others =>
+				refresh_clk_10Hz <= '0';
 		end case;
 	end if;
 end process;
@@ -193,6 +211,7 @@ port map(
 		write_rdy_i		=> usb_instr_rdy_sig,
 		read_reg_o 		=> readout_reg_sig,
 		registers_io	=> register_array,
+		readout_register_i => readout_register_array,
 		address_o		=> reg_addr_sig);
 		
 xRDOUT_CNTRL : entity work.rdout_controller_v2 
@@ -212,7 +231,9 @@ port map(
 	clk_i				=> clk_100kHz_sig,
 	rst_i				=> global_reset_sig,
 	registers_i		=> register_array,
-	write_i			=> refresh_clk_1Hz,	
+	write_i			=> refresh_clk_10Hz,
+	psec4a_ro_bit_i => psec4a_ringosc_mon_i, --//ring oscillator divder bit
+	psec4a_ro_count_o => readout_register_array(0),
 	serial_clk_o	=> psec4a_sclk_o,
 	serial_le_o		=> psec4a_sle_o,
 	serial_dat_o	=> psec4a_sdat_o);

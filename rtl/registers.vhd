@@ -61,7 +61,8 @@ begin
 		
 		registers_io(64) <= x"000000"; --// sw trigger
 		
-		registers_io(81) <= x"000000";  --//ro count target [needs updating]
+		registers_io(80) <= x"007359";  --//ro count target low 16 bits  ( set to 1GHz / 2^11))
+		registers_io(81) <= x"000007";  --//ro count target high 16 bits
 		registers_io(82) <= x"000000";  --//ro firmware feedback enable
 		registers_io(83) <= x"000000";  --//trig sign (LSB)
 		registers_io(84) <= x"000000";  --//dll speed select(LSB)

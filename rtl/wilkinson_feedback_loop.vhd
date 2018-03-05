@@ -31,8 +31,8 @@ entity Wilkinson_Feedback_Loop is
                                 REFRESH_CLOCK       : in std_logic; --One period of this clock defines how long we count Wilkinson rate pulses
                                 DAC_SYNC_CLOCK      : in std_logic; --This clock should be the same that is used for setting DACs, and should be used to avoid race conditions on setting the desired DAC values
                                 WILK_MONITOR_BIT    : in std_logic;
-                                DESIRED_COUNT_VALUE : in std_logic_vector(15 downto 0);
-                                CURRENT_COUNT_VALUE : out std_logic_vector(15 downto 0);
+                                DESIRED_COUNT_VALUE : in std_logic_vector(31 downto 0);
+                                CURRENT_COUNT_VALUE : out std_logic_vector(31 downto 0);
                                 DESIRED_DAC_VALUE   : out std_logic_vector(psec4a_dac_bits-1 downto 0)
         );
 end Wilkinson_Feedback_Loop;
@@ -42,8 +42,8 @@ architecture Behavioral of Wilkinson_Feedback_Loop is
         signal internal_STATE                   : STATE_TYPE := MONITORING;
         signal internal_COUNTER_ENABLE          : std_logic := '0';
         signal internal_COUNTER_CLEAR           : std_logic := '0';
-        signal internal_COUNTER_VALUE           : unsigned(15 downto 0);
-        signal internal_COUNTER_VALUE_LATCHED   : unsigned(15 downto 0);
+        signal internal_COUNTER_VALUE           : unsigned(31 downto 0);
+        signal internal_COUNTER_VALUE_LATCHED   : unsigned(31 downto 0);
         signal internal_DESIRED_DAC_VALUE       : unsigned(psec4a_dac_bits-1 downto 0) := "1000000000";
         signal internal_DESIRED_DAC_VALUE_VALID : std_logic := '1';
 begin

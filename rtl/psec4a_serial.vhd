@@ -25,7 +25,9 @@ port(
 	write_i			:	in		std_logic;
 	psec4a_ro_bit_i:	in		std_logic;
 	
-	psec4a_ro_count_o :	out		std_logic_vector(15 downto 0);
+	psec4a_ro_count_lo_o :	out		std_logic_vector(15 downto 0);
+	psec4a_ro_count_hi_o :	out		std_logic_vector(15 downto 0);
+
 	serial_clk_o	:	out	std_logic;
 	serial_le_o		:	out	std_logic;
 	serial_dat_o	:	out	std_logic);	
@@ -43,8 +45,8 @@ signal flat_serial_array_reg : std_logic_vector(num_serial_clks-1 downto 0) := (
 
 signal feedback_rovcp_dac_value : std_logic_vector(psec4a_dac_bits-1 downto 0);
 signal enable_rovcp_feedback : std_logic;
-signal target_ro_counter_val : std_logic_vector(15 downto 0);
-signal current_ro_counter_val : std_logic_vector(15 downto 0);
+signal target_ro_counter_val : std_logic_vector(31 downto 0);
+signal current_ro_counter_val : std_logic_vector(31 downto 0);
 
 begin
 
@@ -52,9 +54,11 @@ proc_get_dac_values : process(rst_i, clk_i)
 begin
 	if rising_edge(clk_i) then
 		enable_rovcp_feedback <= registers_i(82)(0);
-		target_ro_counter_val <= registers_i(81)(15 downto 0);
-		psec4a_ro_count_o <= current_ro_counter_val;
-		
+		target_ro_counter_val <= registers_i(81)(15 downto 0) & registers_i(80)(15 downto 0);
+
+		psec4a_ro_count_lo_o <= current_ro_counter_val(15 downto 0);
+		psec4a_ro_count_hi_o <= current_ro_counter_val(31 downto 16);
+
 		--//re-clock to safely register the serial bits on the psec4a serial clock
 		flat_serial_array_reg <= flat_serial_array_meta;
 		

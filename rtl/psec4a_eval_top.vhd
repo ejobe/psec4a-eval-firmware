@@ -231,9 +231,10 @@ port map(
 	clk_i				=> clk_100kHz_sig,
 	rst_i				=> global_reset_sig,
 	registers_i		=> register_array,
-	write_i			=> refresh_clk_10Hz,
+	write_i			=> refresh_clk_1Hz,
 	psec4a_ro_bit_i => psec4a_ringosc_mon_i, --//ring oscillator divder bit
-	psec4a_ro_count_o => readout_register_array(0),
+	psec4a_ro_count_lo_o => readout_register_array(0),
+	psec4a_ro_count_hi_o => readout_register_array(1),
 	serial_clk_o	=> psec4a_sclk_o,
 	serial_le_o		=> psec4a_sle_o,
 	serial_dat_o	=> psec4a_sdat_o);

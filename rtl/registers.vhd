@@ -59,11 +59,12 @@ begin
 		end loop;
 
 		
-		registers_io(64) <= x"000000"; --// sw trigger
-		
+		registers_io(124) <= x"000000"; --// sw trigger
+		registers_io(127) <= x"000000"; --// global reset
+
 		registers_io(80) <= x"007359";  --//ro count target low 16 bits  ( set to 1GHz / 2^11))
 		registers_io(81) <= x"000007";  --//ro count target high 16 bits
-		registers_io(82) <= x"000000";  --//ro firmware feedback enable
+		registers_io(82) <= x"000001";  --//ro firmware feedback enable
 		registers_io(83) <= x"000000";  --//trig sign (LSB)
 		registers_io(84) <= x"000000";  --//dll speed select(LSB)
 		registers_io(85) <= x"000000";  --//reset_xfer enable (LSB)
@@ -76,7 +77,7 @@ begin
 		registers_io(91) <= x"000000";   --//BiasDllLast
 		registers_io(92) <= x"000000"; 	--//BiasDllFirst
 		registers_io(93) <= x"0001FA";	--//BiasDllp
-		registers_io(94) <= x"000000";	--//BiasDlln
+		registers_io(94) <= x"000200";	--//BiasDlln
 		registers_io(95) <= x"000000";	--//TrigThresh1
 		registers_io(96) <= x"000000";
 		registers_io(97) <= x"000000";
@@ -85,12 +86,11 @@ begin
 		registers_io(100) <= x"000000";
 		registers_io(101) <= x"000000";
 		registers_io(102) <= x"000000";  --//TrigThresh8
-		registers_io(103) <= x"000000";	--//BiasRampSlope
+		registers_io(103) <= x"000200";	--//BiasRampSlope
 		--//external DAC values		
 		registers_io(104) <= x"008000";	--//Vped
 		registers_io(105) <= x"001000";	--//VresetXfer
 
-		
 		registers_io(109) <= x"000001";  --//read register [109]
 		address_o <= x"00";
 		
@@ -123,9 +123,9 @@ begin
 			--end loop;
 			--////////////////////////////////////////////////
 			--//clear pulsed registers
-			registers_io(127) <= x"000000"; --//clear the reset register
-			registers_io(126) <= x"000000"; --//clear the event counter reset
-			registers_io(40) <= x"000000"; --//clear the update scalers pulse
+			for i in 120 to 127 loop
+				registers_io(i) <= (others=>'0');
+			end loop;
 			--////////////////////////////////////////////////////////////////////////////	
 			--//these should be static, but keep updating every clk_i cycle
 			--if unique_chip_id_rdy = '1' then

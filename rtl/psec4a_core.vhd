@@ -80,7 +80,7 @@ end component;
 begin
 
 xSW_TRIG_SYNC : flag_sync
-port map(clkA => clk_i, clkB=> clk_mezz_i, in_clkA=>registers_i(64)(0),
+port map(clkA => clk_i, clkB=> clk_mezz_i, in_clkA=>registers_i(124)(0),
 			out_clkB => sw_trig_flag_int);
 	
 --//cycle through psec4a analog blocks, only handle sw triggers for now

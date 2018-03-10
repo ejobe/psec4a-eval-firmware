@@ -63,6 +63,8 @@ signal clk_100kHz_sig 	:	std_logic;
 signal clk_1Hz_sig		: 	std_logic;
 signal clk_10Hz_sig		:	std_logic;
 signal clk_usb_48Mhz		:	std_logic;
+signal clk_mezz_internal:  std_logic;
+signal psec4a_write_clk_buf:  std_logic;
 
 signal usb_done_sig		:	std_logic;
 signal usb_slwr_sig		:	std_logic;
@@ -85,6 +87,19 @@ signal REFRESH_CLK_MATCH_10HZ		: std_logic_vector(19 downto 0) := x"02710";
 signal readout_register_array : read_register_array_type;
 --//---------------------------------------------------------------------------
 begin
+
+------------------------------------
+--psec4a `latch decoder': bits 2 downto 0
+-- 0  adc bit latch sel 0
+-- 1  adc bit latch sel 1
+-- 2  adc bit latch sel 2
+-- 3  adc bit latch sel 3
+-- 4  adc counter clear
+-- 5  read shift register clear
+-- 6  clear serial shift register and latches
+-- 7  read token in
+--EN  bit 3 ['0'=all decoded outputs at 0; '1'=selected output active]
+------------------------------------
 
 --//simple test for DACs:
 --apply reset on serial interface/clock the load enable:
@@ -148,6 +163,15 @@ port map(
 	c0			=> clk_25MHz_sig,
 	c1			=> clk_100kHz_sig,
 	locked	=> open);
+
+--xIBUF : entity work.ibuf
+--port map( datain(0) => psec4a_write_clk_i, dataout(0) => psec4a_write_clk_buf);
+--
+--xPLL2 : entity work.pll2
+--port map(
+--	areset	=> global_reset_sig, inclk0	=> psec4a_write_clk_buf,
+--	c0			=> clk_mezz_internal, locked	=> open);
+clk_mezz_internal <= psec4a_write_clk_i;
 	
 --xPLL1 : entity work.pll1
 --port map(
@@ -163,7 +187,7 @@ xPSEC4A_CNTRL : entity work.psec4a_core
 port map(
 	rst_i				=> global_reset_sig,
 	clk_i				=> clk_usb_48Mhz,
-	clk_mezz_i		=> psec4a_write_clk_i,
+	clk_mezz_i		=> clk_mezz_internal,
 	registers_i		=> register_array,
 	
 	dll_start_o		=> psec4a_dllstart_o,

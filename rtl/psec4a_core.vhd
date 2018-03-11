@@ -249,6 +249,7 @@ begin
 		when ramp_st =>
 			clear_adc_o <= '0';
 			psec4a_digz_busy_int <= '1';
+			digz_latch_transp <= '0';
 			ring_osc_en_o <= '1';
 			ramp_o <= '0';  --//ramp enable active low
 			
@@ -334,10 +335,16 @@ begin
 				psec4a_conversion_state <= psec4a_next_load_latch_state;
 			end if;
 			
+		
+		
+		--------------------------------------------------------
+		-- readout control
+		--------------------------------------------------------
 		when readout_channel_update_st => 
 			psec4a_digz_busy_int <= '0';
 			psec4a_rdout_busy_int <= '1';
 			
+			digz_latch_transp <= '0';
 			clear_adc_o <= '0'; 
 			ring_osc_en_o <= '0';
 			ramp_o <= '0';
@@ -371,6 +378,7 @@ begin
 			psec4a_digz_busy_int <= '0';
 			psec4a_rdout_busy_int <= '1';
 			
+			digz_latch_transp <= '0';
 			clear_adc_o <= '0'; 
 			ring_osc_en_o <= '0';
 			ramp_o <= '0';

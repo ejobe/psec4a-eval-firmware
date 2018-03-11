@@ -217,7 +217,7 @@ begin
 			chan_sel_o <= "000"
 			rdout_token_o <= '0';
 			sample_rdy_int <= '0';
-			comp_sel_o <= comp_sel_o + 1; --//go to next comparator
+			
 			digz_latch_sel <= "00";
 			digz_latch_transp <= '0';
 			ramp_o <= '1'; --//reset ramp
@@ -235,6 +235,9 @@ begin
 		
 			--// otherwise, wait and start another ramp-compare ADC conversion
 			elsif conv_counter_int > conv_start_count_int then	
+				
+				comp_sel_o <= comp_sel_o + 1; --//go to next comparator
+				
 				conv_counter_int <= (others=>'0');
 				psec4a_conversion_state <= ramp_st;
 				
@@ -252,7 +255,8 @@ begin
 			if conv_counter_int > ramp_length_count_int then
 				conv_counter_int <= (others=>'0');
 				dig_count := dig_count + 1; --//increment digitized block count
-				psec4a_conversion_state <= psec4a_next_load_latch_state;			
+				psec4a_conversion_state <= psec4a_next_load_latch_state;						
+			
 			else
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= ramp_st;

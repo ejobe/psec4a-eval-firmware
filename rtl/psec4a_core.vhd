@@ -11,7 +11,7 @@
 ---------------------------------------------------------------------------------
 library IEEE;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_arith.all;
+use ieee.numeric_std.all;
 use ieee.std_logic_unsigned.all;
 
 use work.defs.all;
@@ -19,7 +19,8 @@ use work.defs.all;
 entity psec4a_core is
 port(
 	rst_i				:	in		std_logic;
-	clk_i				: 	in 	std_logic;  --//clock for register stuff
+	clk_i				:	in		std_logic;
+	clk_reg_i		: 	in 	std_logic;  --//clock for register stuff
 	clk_mezz_i		:	in		std_logic;  --//clock from mezzanine board on which psec4a is using for sampling
 	registers_i		:	in		register_array_type;
 	
@@ -31,6 +32,7 @@ port(
 	latchsel_o		:	out	std_logic_vector(1 downto 0); --//psec4a select ADC latchsel_o
 	latch_transp_o	:	out	std_logic; --//enable latch transparency
 	clear_adc_o		:	out	std_logic; --//psec4a clear ADC counters
+	clear_rdout_o	:	out	std_logic;
 	rdout_clk_o		:  out	std_logic; --//psec4a readout clock
 	chan_sel_o		:	out	std_logic_vector(2 downto 0); --//psec4a readout channel select
 	
@@ -48,22 +50,28 @@ signal sample_rdy_int : std_logic; --//flag to restart psec4a sampling
 signal psec4a_digz_busy_int : std_logic;  --//psec4a is digitizing
 signal psec4a_rdout_busy_int : std_logic; --//psec4a is reading out data
 
-signal conv_counter_int : std_logic_vector(15 downto 0);
-signal conv_start_count_int : std_logic_vector(15 downto 0) := x"0004";
+signal conv_counter_int : std_logic_vector(15 downto 0) := (others=>'0');
+signal conv_start_count_int : std_logic_vector(15 downto 0);
+signal rdout_clk_count_int : std_logic_vector(15 downto 0) := x"84"; --//132 clk cycles per readout
 signal ramp_length_count_int : std_logic_vector(15 downto 0);
 
-signal rdout_counter_int : std_logic_vector(15 downto 0);
+signal rdout_clk_en_int : std_logic;
 
 --//ADC counter latches can be controlled by ADC or readout
-signal digz_latch_busy 	: std_logic;
 signal digz_latch_sel	 : std_logic_vector(1 downto 0);	
 signal digz_latch_transp : std_logic;
-signal rdout_latch_sel	 : std_logic_vector(1 downto 0);	
-signal rdout_latch_transp : std_logic;
+signal latch_full : std_logic_vector(3 downto 0) := (others=>'0');
 
 --//psec4a A/D conversion fsm:
-type psec4a_conversion_state_type is (idle_st, start_st, digitize_st, latch_st, wait_for_rdout_st);
+--type psec4a_conversion_state_type is (idle_st, start_st, digitize_st, latch_st, wait_for_rdout_st);
+--signal psec4a_conversion_state : psec4a_conversion_state_type;
+type psec4a_conversion_state_type is (idle_st, start_st, ramp_st, load_latch0_st, load_latch1_st, load_latch2_st, load_latch3_st, 
+												next_load_latch_st, readout_st, empty_latch0_st, empty_latch1_st, empty_latch2_st, empty_latch3_st,  
+												next_empty_latch_st);
 signal psec4a_conversion_state : psec4a_conversion_state_type;
+signal psec4a_next_load_latch_state: psec4a_conversion_state_type;
+signal psec4a_next_empty_latch_state: psec4a_conversion_state_type;
+
 --//psec4a readout fsm:
 type psec4a_rdout_state_type is (idle_st, start_st, digitize_st, latch_st, wait_for_rdout_st);
 signal psec4a_rdout_state : psec4a_rdout_state_type;
@@ -76,13 +84,23 @@ port(
 	busy_clkA	: out	std_logic;
 	out_clkB		: out	std_logic);
 end component;
+
+component signal_sync is
+port(
+	clkA			: in	std_logic;
+	clkB			: in	std_logic;
+	SignalIn_clkA	: in	std_logic;
+	SignalOut_clkB	: out	std_logic);
+end component;
 	
 begin
 
 xSW_TRIG_SYNC : flag_sync
-port map(clkA => clk_i, clkB=> clk_mezz_i, in_clkA=>registers_i(124)(0),
+port map(clkA => clk_reg_i, clkB=> clk_mezz_i, in_clkA=>registers_i(124)(0),
 			out_clkB => sw_trig_flag_int);
 	
+----------------------------------------------------------------------------------
+--//PRIMARY SAMPLING and TRANSFER CONTROL NEEDS TO BE CLOCKED w/ clk_mezz_i
 --//cycle through psec4a analog blocks, only handle sw triggers for now
 proc_sample_hold : process(rst_i, clk_mezz_i, sw_trig_flag_int, sample_rdy_int)
 begin
@@ -95,6 +113,7 @@ begin
 	end if;
 end process;
 
+--cycle through analog transfer blocks
 proc_xfer_adr : process(rst_i, clk_mezz_i, sample_hold_int)
 begin
 	if rst_i = '1' then
@@ -112,10 +131,26 @@ begin
 	end if;
 end process;
 --//////////////////////
+----------------------------------------------------------------------------------
 --------------
 --//first stab at psec4a digitization and readout control
+--//
+--// this is all done on clk_i
+--//  nominally, would sync to clk_mezz_i, but due to eval board design contraints, only clk_i is on dedicated clock fabric
 --------------
-proc_digz_rdout : process(rst_i, clk_mezz_i, sample_hold_int)
+
+--//sync some control signals from the register interface:
+RAMP_CNT_SYNC : for i in 0 to 15 generate
+	xRAMP_CNT_SYNC : signal_sync
+	port map(clkA=>clk_reg_i, clkB=>clk_i, SignalIn_clkA=> registers_i(79)(i), signalOut_clkB=> ramp_length_count_int(i));
+end generate;
+
+CONV_START_CNT_SYNC : for i in 0 to 15 generate
+	CONV_START_CNT_SYNC : signal_sync
+	port map(clkA=>clk_reg_i, clkB=>clk_i, SignalIn_clkA=> registers_i(78)(i), signalOut_clkB=> conv_start_count_int(i));
+end generate;
+
+proc_digz_rdout : process(rst_i, clk_i, sample_hold_int, rdout_counter_int)
 variable dig_count : integer range 0 to 8 := 0;
 begin
 	if rst_i = '1' then
@@ -125,119 +160,193 @@ begin
 		comp_sel_o <= "000";
 		digz_latch_sel <= "00";
 		digz_latch_transp <= '0';
-		digz_latch_busy <= '0';
 		chan_sel_o <= "000";
-		rdout_clk_o <= '0';
-		ramp_o <= '1'; --//active low, I think
+		rdout_clk_en_int  <= '0';
+		ramp_o <= '0'; --//active low
 		ring_osc_en_o <= '0';
 		psec4a_digz_busy_int <= '0';
+		psec4a_rdout_busy_int <= '0';
 		clear_adc_o <= '0';
+		clear_rdout_o <= '0';
 		conv_counter_int <= (others=>'0');
+		rdout_clk_en_int <= '0';
+		latch_full <= "0000";
+		
+		psec4a_next_load_latch_state <= load_latch0_st;
+		psec4a_next_empty_latch_state <= empty_latch2_st;
 		psec4a_conversion_state <= idle_st;
 		
-	elsif rising_edge(clk_mezz_i) then
+	elsif rising_edge(clk_i) then
 		case psec4a_conversion_state is
 			
 			when idle_st=>
 				sample_rdy_int <= '0';
+				dig_count := 0;
+				
 				comp_sel_o <= "111";
 				digz_latch_sel <= "00";
 				digz_latch_transp <= '0';
-				digz_latch_busy <= '0';
-				ramp_o <= '1'; 
+				ramp_o <= '0'; 
 				ring_osc_en_o <= '0';
 				clear_adc_o <= '1';
-				dig_count := 0;
 				psec4a_digz_busy_int <= '0';
-		
-				if sample_hold_int = '1' then
-					--//counter here allows some wait time before starting digitization (i.e. leakage studies)
-					if conv_counter_int >= conv_start_count_int then
-						conv_counter_int <= (others=>'0');
-						psec4a_conversion_state <= start_st;
-					else
-						conv_counter_int <= conv_counter_int + 1;
-					end if;
+				psec4a_rdout_busy_int <= '0';
+				conv_counter_int <= (others=>'0');
+				rdout_clk_en_int <= '0';
+				clear_rdout_o <= '0';
+				rdout_clk_en_int <= '0';
 				
+				psec4a_next_load_latch_state <= load_latch0_st;
+				psec4a_next_empty_latch_state <= empty_latch3_st; --//empties in reverse order as load
+
+				if sample_hold_int = '1' then
+					psec4a_conversion_state <= start_st;
 				else
-					conv_counter_int <= (others=>'0');
 					psec4a_conversion_state <= idle_st;
 				end if;
 			
 		when start_st =>
 			sample_rdy_int <= '0';
 			comp_sel_o <= comp_sel_o + 1; --//go to next comparator
-			digz_latch_sel <= "11";
+			digz_latch_sel <= "00";
 			digz_latch_transp <= '0';
-			digz_latch_busy <= '0';
-			ramp_o <= '1'; 
+			ramp_o <= '1'; --//reset ramp
 			ring_osc_en_o <= '0';
-			clear_adc_o <= '1'; 
+			clear_adc_o <= '1';  --//clear adc
 			psec4a_digz_busy_int <= '1'; --//now busy
-			psec4a_conversion_state <= digitize_st;			
+			
+			psec4a_next_load_latch_state <= load_latch0_st; --//always have to start by loading latch 0
+			
+			if latch_full = "1111" then
+				conv_counter_int <= (others=>'0');
+				psec4a_conversion_state <= psec4a_next_empty_latch_state;
+		
+			elsif conv_counter_int > conv_start_count_int then	
+				conv_counter_int <= (others=>'0');
+				psec4a_conversion_state <= ramp_st;
 				
-		when digitize_st =>
+			else
+				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= start_st;
+			end if;
+			
+		when ramp_st =>
 			clear_adc_o <= '0';
 			psec4a_digz_busy_int <= '1';
-			digz_latch_busy <= '0';
 			ring_osc_en_o <= '1';
 			ramp_o <= '0';  --//ramp enable active low
+			
 			if conv_counter_int > ramp_length_count_int then
 				conv_counter_int <= (others=>'0');
 				dig_count := dig_count + 1; --//increment digitized block count
-				psec4a_conversion_state <= latch_st;			
+				psec4a_conversion_state <= psec4a_next_load_latch_state;			
 			else
 				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= ramp_st;
 			end if;
 			
-		when latch_st => 
+		--//4 latches after each ADC bit (idea is to store data digitally to permit simultaneous digitizing & readout)
+		--// --> so can digitize 4 of 8 blocks immediately, readout, and then digitize the other 4 (if reading out all 8 blocks)
+		--//      to do this, we need to pass the first digitized block to the last (fourth) latch; the second block to to the third latch, and so on
+		--//      the latches are arranged in serial, so data are required pass through all latches to get to readout stage.
+		
+		when load_latch0_st => 
 			clear_adc_o <= '0';
 			psec4a_digz_busy_int <= '1';
-			digz_latch_busy <= '1'; --//put high, indicates the adc fsm is toggling the latches (so readout cntrl should not)
 			ring_osc_en_o <= '0';
 			ramp_o <= '0';  --//ramp stays high while latching data
-						
-			--//4 latches after each ADC bit (idea is to store data digitally to permit simultaneous digitizing & readout)
-			--// --> so can digitize 4 of 8 blocks immediately, readout, and then digitize the other 4 (if reading out all 8 blocks)
-			--//      to do this, we need to pass the first digitized block to the last (fourth) latch; the second block to to the third latch, and so on
-			--//      the latches are arranged in serial, so data are required pass through all latches to get to readout stage.
+			digz_latch_sel <= "00";	
+			digz_latch_transp <= '1';
+			
+			latch_full(0) <= '1';
+			
+			psec4a_conversion_state <= next_load_latch_st;
+			psec4a_next_load_latch_state <= load_latch1_st;
 
-			--//every two clk cycles, increment the latch addr
-			if conv_counter_int(0) = '0' then
-				digz_latch_sel <= digz_latch_sel + 1;
+		when load_latch1_st => 
+			clear_adc_o <= '0';
+			psec4a_digz_busy_int <= '1';
+			ring_osc_en_o <= '0';
+			ramp_o <= '0';  --//ramp stays high while latching data
+			digz_latch_sel <= "01";	
+			digz_latch_transp <= '1';
+			
+			latch_full(0) <= '0';
+			latch_full(1) <= '1';
+
+			psec4a_conversion_state <= next_load_latch_st;
+			psec4a_next_load_latch_state <= load_latch2_st;	
+	
+		when load_latch2_st => 
+			clear_adc_o <= '0';
+			psec4a_digz_busy_int <= '1';
+			ring_osc_en_o <= '0';
+			ramp_o <= '0';  --//ramp stays high while latching data
+			digz_latch_sel <= "10";	
+			digz_latch_transp <= '1';
+			
+			latch_full(1) <= '0';
+			latch_full(2) <= '1';
+
+			psec4a_conversion_state <= next_load_latch_st;
+			psec4a_next_load_latch_state <= load_latch3_st;	
+			
+		when load_latch3_st => 
+			clear_adc_o <= '0';
+			psec4a_digz_busy_int <= '1';
+			ring_osc_en_o <= '0';
+			ramp_o <= '0';  --//ramp stays high while latching data
+			digz_latch_sel <= "11";	
+			digz_latch_transp <= '1';
+			
+			latch_full(2) <= '0';
+			latch_full(3) <= '1';
+			
+			psec4a_conversion_state <= start_st;
+			psec4a_next_load_latch_state <= load_latch0_st;
+			
+		when next_load_latch_st =>
+			digz_latch_transp <= '0';
+			
+			--//if next latch is full, go back to start
+			if latch_full(to_integer(unsigned(digz_latch_sel+1))) = '1' then
+				psec4a_conversion_state <= start_st;
+				
+			--//otherwise, load the next latch
 			else
-				digz_latch_sel <= digz_latch_sel;
+				psec4a_conversion_state <= psec4a_next_load_latch_state;
 			end if;
 			
-			if digz_latch_sel = "00" and dig_count mod 4 = 1 and conv_counter_int > 2 then
+		when readout_st =>
+			psec4a_digz_busy_int <= '0';
+			psec4a_rdout_busy_int <= '1';
+			clear_adc_o <= '0'; 
+			ring_osc_en_o <= '0';
+			clear_rdout_o <= '0';
+			ramp_o <= '0';
+			rdout_clk_en_int <= '1';
+			
+			if conv_counter_int >= rdout_clk_count_int then
 				conv_counter_int <= (others=>'0');
-				digz_latch_transp <= '0';
-				psec4a_conversion_state <= start_st;
-			elsif digz_latch_sel = "11" and dig_count mod 4 = 2 then
-				conv_counter_int <= (others=>'0');
-				digz_latch_transp <= '0';
-				psec4a_conversion_state <= start_st;
-			elsif digz_latch_sel = "10" and dig_count mod 4 = 3 then
-				conv_counter_int <= (others=>'0');
-				digz_latch_transp <= '0';
-				psec4a_conversion_state <= start_st;
-			elsif digz_latch_sel = "01" and dig_count mod 4 = 0 then
-				conv_counter_int <= (others=>'0');
-				digz_latch_transp <= '0';
-				psec4a_conversion_state <= wait_for_rdout_st; --//filled the latches! now readout
+				psec4a_conversion_state <= psec4a_next_empty_latch_state;
 			else
 				conv_counter_int <= conv_counter_int + 1;
-				digz_latch_transp <= conv_counter_int(0); --//make latch transparent when counter LSB=1
-				psec4a_conversion_state <= latch_st;
+				psec4a_conversion_state <= readout_st
 			end if;
 			
-		when wait_for_rdout_st =>
+		when empty_latch3_st => 
 			psec4a_digz_busy_int <= '0';
-			digz_latch_busy <= '0';
-			clear_adc_o <= '0';
+			psec4a_rdout_busy_int <= '1';
+			clear_adc_o <= '0'; --//need to set clear_adc low here in order for clear_rdout_o to take effect
 			ring_osc_en_o <= '0';
-			psec4a_conversion_state <= idle_st;
+			clear_rdout_o <= '1';
+			rdout_clk_en_int <= '0';
+			ramp_o <= '0'; --//keep ramp low for now, in principal can start more ADC conversions
+			conv_counter_int <= (others=>'0');
+			psec4a_next_empty_latch_state <= empty_latch2_st;
+			psec4a_conversion_state <= readout_st;
 			
+				
 		end case;
 	end if;
 end process;

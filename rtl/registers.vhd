@@ -61,7 +61,9 @@ begin
 		
 		registers_io(124) <= x"000000"; --// sw trigger
 		registers_io(127) <= x"000000"; --// global reset
-
+		
+		registers_io(79) <= x"000002";  --//how many clock cycles to hold stuff in reset before starting up the adc conversion
+		registers_io(79) <= x"000200";  --//ramp count --> how many clk cycles to wait for ramp to finish ADC
 		registers_io(80) <= x"007359";  --//ro count target low 16 bits  ( set to 1GHz / 2^11))
 		registers_io(81) <= x"000007";  --//ro count target high 16 bits
 		registers_io(82) <= x"000001";  --//ro firmware feedback enable

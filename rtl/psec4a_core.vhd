@@ -34,7 +34,8 @@ port(
 	clear_adc_o		:	out	std_logic; --//psec4a clear ADC counters
 	clear_rdout_o	:	out	std_logic;
 	rdout_clk_o		:  out	std_logic; --//psec4a readout clock
-	chan_sel_o		:	out	std_logic_vector(2 downto 0); --//psec4a readout channel select
+	rdout_token_o	:	out	std_logic;
+	chan_sel_o		:	buffer	std_logic_vector(2 downto 0); --//psec4a readout channel select
 	
 	psec4a_dat_i	:	in		std_logic_vector(10 downto 0); --//psec4a data bus
 	psec4a_trig_i	:	in		std_logic_vector(5 downto 0)); --//(whoops, only 6/8 trig lines routed on the board)
@@ -66,8 +67,9 @@ signal latch_full : std_logic_vector(3 downto 0) := (others=>'0');
 --type psec4a_conversion_state_type is (idle_st, start_st, digitize_st, latch_st, wait_for_rdout_st);
 --signal psec4a_conversion_state : psec4a_conversion_state_type;
 type psec4a_conversion_state_type is (idle_st, start_st, ramp_st, load_latch0_st, load_latch1_st, load_latch2_st, load_latch3_st, 
-												next_load_latch_st, readout_st, empty_latch0_st, empty_latch1_st, empty_latch2_st, empty_latch3_st,  
-												next_empty_latch_st);
+												next_load_latch_st, readout_st, empty_latch0_st, empty_latch1_st, empty_latch2_st, 
+												readout_channel_update_st);
+												
 signal psec4a_conversion_state : psec4a_conversion_state_type;
 signal psec4a_next_load_latch_state: psec4a_conversion_state_type;
 signal psec4a_next_empty_latch_state: psec4a_conversion_state_type;
@@ -94,6 +96,8 @@ port(
 end component;
 	
 begin
+
+rdout_clk_o < clk_i and rdout_clk_en_int;
 
 xSW_TRIG_SYNC : flag_sync
 port map(clkA => clk_reg_i, clkB=> clk_mezz_i, in_clkA=>registers_i(124)(0),
@@ -157,20 +161,22 @@ begin
 		sample_rdy_int <= '1';
 		dig_count := 0;
 		
+		rdout_token_o <= '0';
 		comp_sel_o <= "000";
 		digz_latch_sel <= "00";
 		digz_latch_transp <= '0';
 		chan_sel_o <= "000";
 		rdout_clk_en_int  <= '0';
-		ramp_o <= '0'; --//active low
+		ramp_o <= '0'; 
 		ring_osc_en_o <= '0';
 		psec4a_digz_busy_int <= '0';
 		psec4a_rdout_busy_int <= '0';
 		clear_adc_o <= '0';
 		clear_rdout_o <= '0';
-		conv_counter_int <= (others=>'0');
 		rdout_clk_en_int <= '0';
 		latch_full <= "0000";
+
+		conv_counter_int <= (others=>'0');
 		
 		psec4a_next_load_latch_state <= load_latch0_st;
 		psec4a_next_empty_latch_state <= empty_latch2_st;
@@ -183,6 +189,8 @@ begin
 				sample_rdy_int <= '0';
 				dig_count := 0;
 				
+				chan_sel_o <= "000"
+				rdout_token_o <= '0';
 				comp_sel_o <= "111";
 				digz_latch_sel <= "00";
 				digz_latch_transp <= '0';
@@ -197,7 +205,7 @@ begin
 				rdout_clk_en_int <= '0';
 				
 				psec4a_next_load_latch_state <= load_latch0_st;
-				psec4a_next_empty_latch_state <= empty_latch3_st; --//empties in reverse order as load
+				psec4a_next_empty_latch_state <= empty_latch2_st; --//empties in reverse order as load
 
 				if sample_hold_int = '1' then
 					psec4a_conversion_state <= start_st;
@@ -206,6 +214,8 @@ begin
 				end if;
 			
 		when start_st =>
+			chan_sel_o <= "000"
+			rdout_token_o <= '0';
 			sample_rdy_int <= '0';
 			comp_sel_o <= comp_sel_o + 1; --//go to next comparator
 			digz_latch_sel <= "00";
@@ -216,11 +226,14 @@ begin
 			psec4a_digz_busy_int <= '1'; --//now busy
 			
 			psec4a_next_load_latch_state <= load_latch0_st; --//always have to start by loading latch 0
+			psec4a_next_empty_latch_state <= empty_latch2_st;
 			
+			--//go to readout of all latches are full
 			if latch_full = "1111" then
 				conv_counter_int <= (others=>'0');
-				psec4a_conversion_state <= psec4a_next_empty_latch_state;
+				psec4a_conversion_state <= readout_st;
 		
+			--// otherwise, wait and start another ramp-compare ADC conversion
 			elsif conv_counter_int > conv_start_count_int then	
 				conv_counter_int <= (others=>'0');
 				psec4a_conversion_state <= ramp_st;
@@ -317,36 +330,148 @@ begin
 				psec4a_conversion_state <= psec4a_next_load_latch_state;
 			end if;
 			
+		when readout_channel_update_st => 
+			psec4a_digz_busy_int <= '0';
+			psec4a_rdout_busy_int <= '1';
+			
+			clear_adc_o <= '0'; 
+			ring_osc_en_o <= '0';
+			ramp_o <= '0';
+			
+			clear_rdout_o <= '1'; --//clear readout registers
+			rdout_token_o <= '0';
+			rdout_clk_en_int <= '0';
+			
+			conv_counter_int <= (others=>'0');
+			latch_full(3) <= '0';
+			
+			if chan_sel_o = "111" then
+				chan_sel_o <= "000";
+				if latch_full(0) = '1' or latch_full(1) = '1' or latch_full(2) = '1' then
+					psec4a_conversion_state <= next_empty_latch_st;
+				
+				--//digitize and readout the other blocks
+				elsif dig_count < 7 then
+					psec4a_conversion_state <= start_st;
+				
+				--//otherwise done w/ complete readout
+				else
+					psec4a_conversion_state <= idle_st; --//DONE
+			else
+				chan_sel_o <= chan_sel_o + 1;
+				psec4a_conversion_state <= readout_st;
+			end if;
+				
+		--//readout
 		when readout_st =>
 			psec4a_digz_busy_int <= '0';
 			psec4a_rdout_busy_int <= '1';
+			
 			clear_adc_o <= '0'; 
 			ring_osc_en_o <= '0';
-			clear_rdout_o <= '0';
 			ramp_o <= '0';
-			rdout_clk_en_int <= '1';
 			
-			if conv_counter_int >= rdout_clk_count_int then
+			--//done w/ readout of channel
+			if conv_counter_int = rdout_clk_count_int + 2 then
+				clear_rdout_o <= '0';
+				rdout_token_o <= '0';
+				rdout_clk_en_int <= '0';
 				conv_counter_int <= (others=>'0');
-				psec4a_conversion_state <= psec4a_next_empty_latch_state;
-			else
+				psec4a_conversion_state <= readout_channel_update_st;
+			
+			--//second clock cycle, toggle read token
+			elsif conv_counter_int = 1 then
+				clear_rdout_o <= '0';
+				rdout_token_o <= '1';
+				rdout_clk_en_int <= '1';
 				conv_counter_int <= conv_counter_int + 1;
-				psec4a_conversion_state <= readout_st
+				psec4a_conversion_state <= readout_st;	
+				
+			--//first clock cycle, keep readout clear, but enable clock
+			elsif conv_counter_int = 0 then
+				clear_rdout_o <= '1';
+				rdout_token_o <= '0';
+				rdout_clk_en_int <= '1';
+				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= readout_st;	
+				
+			--//keep readout clock enabled
+			else
+				clear_rdout_o <= '0';
+				rdout_token_o <= '0';
+				rdout_clk_en_int <= '1';
+				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= readout_st;
 			end if;
 			
-		when empty_latch3_st => 
+		when empty_latch2_st => 
 			psec4a_digz_busy_int <= '0';
 			psec4a_rdout_busy_int <= '1';
-			clear_adc_o <= '0'; --//need to set clear_adc low here in order for clear_rdout_o to take effect
+			
+			clear_adc_o <= '0'; 
 			ring_osc_en_o <= '0';
-			clear_rdout_o <= '1';
+			ramp_o <= '0';
+			
+			clear_rdout_o <= '0';
+			rdout_token_o <= '0';
 			rdout_clk_en_int <= '0';
-			ramp_o <= '0'; --//keep ramp low for now, in principal can start more ADC conversions
-			conv_counter_int <= (others=>'0');
-			psec4a_next_empty_latch_state <= empty_latch2_st;
+			
+			--//toggle the 4th latch --> copy values in the third latch to the fourth latch
+			digz_latch_sel <= "11";	
+			digz_latch_transp <= '1';
+			latch_full(2) <= '0';
+			latch_full(3) <= '1';
+			
+			if latch_full(1) = '1' then
+				psec4a_next_empty_latch_state <= empty_latch1_st;
+			elsif latch_full(0) = '1' then
+				psec4a_next_empty_latch_state <= empty_latch0_st;
+			else
+				psec4a_next_empty_latch_state <= empty_latch2_st;
+			end if;
+			--//goto readout
 			psec4a_conversion_state <= readout_st;
 			
-				
+		when empty_latch1_st => 
+			psec4a_digz_busy_int <= '0';
+			psec4a_rdout_busy_int <= '1';
+			
+			clear_adc_o <= '0'; 
+			ring_osc_en_o <= '0';
+			ramp_o <= '0';
+			
+			clear_rdout_o <= '0';
+			rdout_token_o <= '0';
+			rdout_clk_en_int <= '0';
+			
+			--//toggle the 3rd latch --> copy values in the second latch to the third latch
+			digz_latch_sel <= "10";	
+			digz_latch_transp <= '1';
+			latch_full(1) <= '0';
+			latch_full(2) <= '1';
+			
+			psec4a_conversion_state <= empty_latch2_st;
+			
+		when empty_latch0_st => 
+			psec4a_digz_busy_int <= '0';
+			psec4a_rdout_busy_int <= '1';
+			
+			clear_adc_o <= '0'; 
+			ring_osc_en_o <= '0';
+			ramp_o <= '0';
+			
+			clear_rdout_o <= '0';
+			rdout_token_o <= '0';
+			rdout_clk_en_int <= '0';
+			
+			--//toggle the 2nd latch --> copy values in the first latch to the second latch
+			digz_latch_sel <= "01";	
+			digz_latch_transp <= '1';
+			latch_full(0) <= '0';
+			latch_full(1) <= '1';
+			
+			psec4a_conversion_state <= empty_latch1_st;
+			
 		end case;
 	end if;
 end process;

@@ -29,16 +29,12 @@ port(
 	ramp_o			:	out	std_logic; --//psec4a ramp toggle
 	ring_osc_en_o	:	out	std_logic; --//psec4a ring oscillator enable
 	comp_sel_o		:	buffer	std_logic_vector(2 downto 0); --//psec4a comparator select
-	latchsel_o		:	out	std_logic_vector(1 downto 0); --//psec4a select ADC latchsel_o
-	latch_transp_o	:	out	std_logic; --//enable latch transparency
-	clear_adc_o		:	out	std_logic; --//psec4a clear ADC counters
-	clear_rdout_o	:	out	std_logic;
+	latch_sel_o		:	out	std_logic_vector(3 downto 0); --//psec4a 'latch' decoder
 	rdout_clk_o		:  out	std_logic; --//psec4a readout clock
-	rdout_token_o	:	out	std_logic;
 	chan_sel_o		:	buffer	std_logic_vector(2 downto 0); --//psec4a readout channel select
 	
 	psec4a_dat_i	:	in		std_logic_vector(10 downto 0); --//psec4a data bus
-	psec4a_trig_i	:	in		std_logic_vector(5 downto 0)); --//(whoops, only 6/8 trig lines routed on the board)
+	psec4a_trig_i	:	in		std_logic_vector(5 downto 0)); --//(whoops, only 6/8 trig lines routed on the board!)
 
 end psec4a_core;
 
@@ -54,6 +50,9 @@ signal rdout_clk_count_int : std_logic_vector(15 downto 0) := x"0084"; --//132 c
 signal ramp_length_count_int : std_logic_vector(15 downto 0);
 
 signal rdout_clk_en_int : std_logic;
+signal rdout_clear_int : std_logic;
+signal rdout_token_int : std_logic;
+signal adc_clear_int : std_logic;
 
 --//ADC counter latches can be controlled by ADC or readout
 signal digz_latch_sel	 : std_logic_vector(1 downto 0);	
@@ -167,14 +166,14 @@ begin
 		comp_sel_o <= "000";
 		ramp_o <= '0'; 
 		ring_osc_en_o <= '0';
-		clear_adc_o <= '1';
+		adc_clear_int <= '1';
 		--//counter for various use
 		conv_counter_int <= (others=>'0');	
 		--//readout-specific signals
-		clear_rdout_o <= '0';    --//clear signal for readout shift register
+		rdout_clear_int <= '0';    --//clear signal for readout shift register
 		rdout_clk_en_int <= '0'; --//gate for readout clock sent to psec4a
 		chan_sel_o <= "000";      --//psec4a channel select decoder
-		rdout_token_o <= '0';    --//readout start signal - needs to be high for a single clock cycle to initiate
+		rdout_token_int <= '0';    --//readout start signal - needs to be high for a single clock cycle to initiate
 		
 		psec4a_next_load_latch_state <= load_latch0_st;
 		psec4a_next_empty_latch_state <= empty_latch2_st;
@@ -195,14 +194,14 @@ begin
 			comp_sel_o <= "111";
 			ramp_o <= '0'; 
 			ring_osc_en_o <= '0';
-			clear_adc_o <= '1';
+			adc_clear_int <= '0';
 			--//counter for various use
 			conv_counter_int <= (others=>'0');
 			--//readout-specific signals
-			clear_rdout_o <= '0';
+			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
-			rdout_token_o <= '0';
+			rdout_token_int <= '0';
 			
 			psec4a_next_load_latch_state <= load_latch0_st;
 			psec4a_next_empty_latch_state <= empty_latch2_st; --//empties in reverse order as load
@@ -217,10 +216,10 @@ begin
 		
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
-			clear_rdout_o <= '0';
+			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
-			rdout_token_o <= '0';
+			rdout_token_int <= '0';
 			--//adc-latch signals: used for both adc and readout
 			digz_latch_sel <= "00";
 			digz_latch_transp <= '0';
@@ -228,7 +227,7 @@ begin
 			--//adc-specific signals
 			ramp_o <= '1'; --//clear ramp in preperation for conversion
 			ring_osc_en_o <= '0';
-			clear_adc_o <= '1'; --//clear adc in prep for conversion
+			adc_clear_int <= '1'; --//clear adc in prep for conversion
 			
 			psec4a_next_load_latch_state <= load_latch0_st; --//always have to start by loading latch 0
 			psec4a_next_empty_latch_state <= empty_latch2_st;
@@ -258,25 +257,32 @@ begin
 		when ramp_st =>
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
-			clear_rdout_o <= '0';
+			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
-			rdout_token_o <= '0';
+			rdout_token_int <= '0';
 			--//adc-latch signals: used for both adc and readout
 			digz_latch_sel <= "00";
 			digz_latch_transp <= '0';
 			latch_full <= latch_full;
-			--//adc-specific signals
-			ramp_o <= '0'; --//release ramp clear, ramp cap charging up
-			ring_osc_en_o <= '1'; --//enable ring oscillator buffer drivers
-			clear_adc_o <= '0'; --//release adc clear
 			
-			if conv_counter_int > ramp_length_count_int then
+			if conv_counter_int > ramp_length_count_int + 1 then
+				ramp_o <= '0'; --// ramp charged up
+				ring_osc_en_o <= '0'; --//ro off
+				adc_clear_int <= '0'; --//release adc clear
 				conv_counter_int <= (others=>'0');
 				dig_count := dig_count + 1; --//increment digitized block count
-				psec4a_conversion_state <= psec4a_next_load_latch_state;						
-			
+				psec4a_conversion_state <= psec4a_next_load_latch_state;		
+			elsif conv_counter_int = 0 then			
+				ramp_o <= '0'; --//release ramp clear, ramp cap charging up
+				ring_osc_en_o <= '0'; --//keep ro off
+				adc_clear_int <= '0'; --//release adc clear
+				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= ramp_st;
 			else
+				ramp_o <= '0'; --// ramp cap charging up
+				ring_osc_en_o <= '1'; --//enable ring oscillator buffer drivers
+				adc_clear_int <= '0'; --//release adc clear
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= ramp_st;
 			end if;
@@ -289,14 +295,14 @@ begin
 		when load_latch0_st => 
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
-			clear_rdout_o <= '0';
+			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
-			rdout_token_o <= '0';
+			rdout_token_int <= '0';
 			--//adc-specific signals
 			ramp_o <= '0';  --//ramp stays high while latching data
 			ring_osc_en_o <= '0'; 
-			clear_adc_o <= '0'; 
+			adc_clear_int <= '0'; 
 
 			conv_counter_int <= (others=>'0');
 			
@@ -311,14 +317,14 @@ begin
 		when load_latch1_st => 
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
-			clear_rdout_o <= '0';
+			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
-			rdout_token_o <= '0';
+			rdout_token_int <= '0';
 			--//adc-specific signals
 			ramp_o <= '0';  --//ramp stays high while latching data
 			ring_osc_en_o <= '0'; 
-			clear_adc_o <= '0'; 
+			adc_clear_int <= '0'; 
 
 			conv_counter_int <= (others=>'0');
 			
@@ -334,14 +340,14 @@ begin
 		when load_latch2_st => 
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
-			clear_rdout_o <= '0';
+			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
-			rdout_token_o <= '0';
+			rdout_token_int <= '0';
 			--//adc-specific signals
 			ramp_o <= '0';  --//ramp stays high while latching data
 			ring_osc_en_o <= '0'; 
-			clear_adc_o <= '0'; 
+			adc_clear_int <= '0'; 
 
 			conv_counter_int <= (others=>'0');
 			
@@ -357,14 +363,14 @@ begin
 		when load_latch3_st => 
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
-			clear_rdout_o <= '0';
+			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
-			rdout_token_o <= '0';
+			rdout_token_int <= '0';
 			--//adc-specific signals
 			ramp_o <= '0';  --//ramp stays high while latching data
 			ring_osc_en_o <= '0'; 
-			clear_adc_o <= '0'; 
+			adc_clear_int <= '0'; 
 
 			conv_counter_int <= (others=>'0');
 			
@@ -380,14 +386,14 @@ begin
 		when next_load_latch_st =>
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
-			clear_rdout_o <= '0';
+			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
-			rdout_token_o <= '0';
+			rdout_token_int <= '0';
 			--//adc-specific signals
 			ramp_o <= '0';  --//ramp stays high while latching data
 			ring_osc_en_o <= '0'; 
-			clear_adc_o <= '0'; 
+			adc_clear_int <= '0'; 
 
 			conv_counter_int <= (others=>'0');
 			
@@ -416,12 +422,12 @@ begin
 			--//adc-specific signals
 			ramp_o <= '0';  
 			ring_osc_en_o <= '0'; 
-			clear_adc_o <= '0'; 
+			adc_clear_int <= '0'; 
 			
 			--//readout-specific signals:
-			clear_rdout_o <= '1'; --//clear readout registers
+			rdout_clear_int <= '1'; --//clear readout registers
 			rdout_clk_en_int <= '0';
-			rdout_token_o <= '0';
+			rdout_token_int <= '0';
 			
 			conv_counter_int <= (others=>'0');
 			
@@ -452,7 +458,7 @@ begin
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 						
 			--//adc-specific signals
-			clear_adc_o <= '0'; 
+			adc_clear_int <= '0'; 
 			ring_osc_en_o <= '0';
 			ramp_o <= '0';
 			
@@ -463,32 +469,32 @@ begin
 			
 			--//done w/ readout of channel
 			if conv_counter_int = rdout_clk_count_int + 2 then
-				clear_rdout_o <= '0';
-				rdout_token_o <= '0';
+				rdout_clear_int <= '0';
+				rdout_token_int <= '0';
 				rdout_clk_en_int <= '0';
 				conv_counter_int <= (others=>'0');
 				psec4a_conversion_state <= readout_channel_update_st;
 			
 			--//second clock cycle, toggle read token
 			elsif conv_counter_int = 1 then
-				clear_rdout_o <= '0';
-				rdout_token_o <= '1';
+				rdout_clear_int <= '0';
+				rdout_token_int <= '1';
 				rdout_clk_en_int <= '1';
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= readout_st;	
 				
 			--//first clock cycle, keep readout clear, but enable clock
 			elsif conv_counter_int = 0 then
-				clear_rdout_o <= '1';
-				rdout_token_o <= '0';
+				rdout_clear_int <= '1';
+				rdout_token_int <= '0';
 				rdout_clk_en_int <= '1';
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= readout_st;	
 				
 			--//keep readout clock enabled
 			else
-				clear_rdout_o <= '0';
-				rdout_token_o <= '0';
+				rdout_clear_int <= '0';
+				rdout_token_int <= '0';
 				rdout_clk_en_int <= '1';
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= readout_st;
@@ -498,14 +504,14 @@ begin
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 						
 			--//adc-specific signals
-			clear_adc_o <= '0'; 
+			adc_clear_int <= '0'; 
 			ring_osc_en_o <= '0';
 			ramp_o <= '0';
 			
 			--//readout-specific signals: keep clear and token low, in order for latch_transparent to toggle decoder
-			clear_rdout_o <= '0'; 
+			rdout_clear_int <= '0'; 
 			rdout_clk_en_int <= '0';
-			rdout_token_o <= '0';
+			rdout_token_int <= '0';
 			
 			--//latch signals
 			--//toggle the 4th latch --> copy values in the third latch to the fourth latch
@@ -528,14 +534,14 @@ begin
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 						
 			--//adc-specific signals
-			clear_adc_o <= '0'; 
+			adc_clear_int <= '0'; 
 			ring_osc_en_o <= '0';
 			ramp_o <= '0';
 			
 			--//readout-specific signals: keep clear and token low, in order for latch_transparent to toggle decoder
-			clear_rdout_o <= '0'; 
+			rdout_clear_int <= '0'; 
 			rdout_clk_en_int <= '0';
-			rdout_token_o <= '0';
+			rdout_token_int <= '0';
 			
 			--//latch signals
 			--//toggle the 3rd latch --> copy values in the second latch to the third latch
@@ -550,14 +556,14 @@ begin
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 						
 			--//adc-specific signals
-			clear_adc_o <= '0'; 
+			adc_clear_int <= '0'; 
 			ring_osc_en_o <= '0';
 			ramp_o <= '0';
 			
 			--//readout-specific signals: keep clear and token low, in order for latch_transparent to toggle decoder
-			clear_rdout_o <= '0'; 
+			rdout_clear_int <= '0'; 
 			rdout_clk_en_int <= '0';
-			rdout_token_o <= '0';
+			rdout_token_int <= '0';
 			
 			--//latch signals
 			--//toggle the 2nd latch --> copy values in the first latch to the second latch
@@ -584,20 +590,65 @@ begin
 			comp_sel_o <= "111";
 			ramp_o <= '0'; 
 			ring_osc_en_o <= '0';
-			clear_adc_o <= '0';
+			adc_clear_int <= '0';
 			--//counter for various use
 			conv_counter_int <= (others=>'0');
 			--//readout-specific signals
-			clear_rdout_o <= '0';
+			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
-			rdout_token_o <= '0';
+			rdout_token_int <= '0';
 			
 			psec4a_conversion_state <= idle_st;
 			
 		end case;
 	end if;
 end process;
+
+
+------------------------------------
+--psec4a `latch decoder': bits 2 downto 0
+-- 0  adc bit latch sel 0
+-- 1  adc bit latch sel 1
+-- 2  adc bit latch sel 2
+-- 3  adc bit latch sel 3
+-- 4  adc counter clear
+-- 5  read shift register clear
+-- 6  clear serial shift register and latches
+-- 7  read token in
+--EN  bit 3 ['0'=all decoded outputs at 0; '1'=selected output active]
+------------------------------------
+
+--//simple test for DACs:
+--apply reset on serial interface/clock the load enable:
+process(rst_i, digz_latch_transp, digz_latch_sel, adc_clear_int, 
+         rdout_clear_int, rdout_token_int)
+begin
+	if rst_i = '1' then
+		latch_sel_o <= "1110";
+	
+	elsif digz_latch_transp = '1' then
+		case digz_latch_sel is
+			when "00" => latch_sel_o <= "1000";
+			when "01" => latch_sel_o <= "1001";
+			when "10" => latch_sel_o <= "1010";
+			when "11" => latch_sel_o <= "1011";
+		end case;
+	
+	elsif adc_clear_int = '1' then
+		latch_sel_o <= "1100";
+	
+	elsif rdout_clear_int = '1' then
+		latch_sel_o <= "1101";		
+	
+	elsif rdout_token_int= '1' then
+		latch_sel_o <= "1111";	
+	
+	else
+		latch_sel_o <= "0000";
+	end if;
+end process;
+-----
 		
 	
 end rtl;

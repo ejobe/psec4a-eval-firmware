@@ -96,50 +96,6 @@ signal readout_register_array : read_register_array_type;
 --//---------------------------------------------------------------------------
 begin
 
-------------------------------------
---psec4a `latch decoder': bits 2 downto 0
--- 0  adc bit latch sel 0
--- 1  adc bit latch sel 1
--- 2  adc bit latch sel 2
--- 3  adc bit latch sel 3
--- 4  adc counter clear
--- 5  read shift register clear
--- 6  clear serial shift register and latches
--- 7  read token in
---EN  bit 3 ['0'=all decoded outputs at 0; '1'=selected output active]
-------------------------------------
-
---//simple test for DACs:
---apply reset on serial interface/clock the load enable:
-process(global_reset_sig, clk_25MHz_sig)
-begin
-	if global_reset_sig = '1' then
-		psec4a_latchsel_o <= "1110";
-	elsif rising_edge(clk_75MHz_sig) then
-	
-		if psec4a_latch_transp_int = '1' then
-			case psec4a_latch_sel_int is
-				when "00" => psec4a_latchsel_o <= "1000";
-				when "01" => psec4a_latchsel_o <= "1001";
-				when "10" => psec4a_latchsel_o <= "1010";
-				when "11" => psec4a_latchsel_o <= "1011";
-			end case;
-		
-		elsif psec4a_adc_clear_int = '1' then
-			psec4a_latchsel_o <= "1100";
-		
-		elsif psec4a_rdout_clear_int = '1' then
-			psec4a_latchsel_o <= "1101";		
-		
-		elsif psec4a_rdout_start_int= '1' then
-			psec4a_latchsel_o <= "1111";	
-		
-		else
-			psec4a_latchsel_o <= "0000";
-		end if;
-	end if;
-end process;
------
 
 xCLK_GEN_10Hz : entity work.Slow_Clocks
 generic map(clk_divide_by => 5000)
@@ -190,6 +146,7 @@ port map(
 	areset => '0', inclk0 => master_clock,
 	c0	=> clk_25MHz_sig, c1	=> clk_100kHz_sig, c2 => clk_75MHz_sig, locked	=> open);
 
+----ooof, psec4a_write_clk_i not on a clk_buffer pin...this doesn't work
 --xIBUF : entity work.ibuf
 --port map( datain(0) => psec4a_write_clk_i, dataout(0) => psec4a_write_clk_buf);
 --xPLL2 : entity work.pll2
@@ -208,7 +165,7 @@ USB_RDY(1) <= usb_slwr_sig;
 xPSEC4A_CNTRL : entity work.psec4a_core 
 port map(
 	rst_i				=> global_reset_sig,
-	clk_i				=> clk_75MHz_sig,
+	clk_i				=> clk_25MHz_sig,
 	clk_reg_i		=> clk_usb_48Mhz,
 	clk_mezz_i		=> clk_mezz_internal,
 	registers_i		=> register_array,
@@ -218,9 +175,7 @@ port map(
 	ramp_o			=> psec4a_rampstart_o,
 	ring_osc_en_o	=> psec4a_ringosc_en_o,
 	comp_sel_o		=> psec4a_compsel_o,
-	latchsel_o		=> psec4a_latch_sel_int, --//needs to be merged w/ latch sel decoder
-	latch_transp_o	=> psec4a_latch_transp_int, --//needs to be merged w/ latch sel decoder
-	clear_adc_o		=> psec4a_adc_clear_int, --//needs to be merged w/ latch sel decoder
+	latch_sel_o		=> psec4a_latchsel_o, 
 	rdout_clk_o		=> psec4a_read_clk_o,
 	chan_sel_o		=> psec4a_chansel_o,
 	psec4a_dat_i	=> psec4a_d_i,

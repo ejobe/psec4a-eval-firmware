@@ -238,35 +238,6 @@ set_global_assignment -name SEARCH_PATH "c:\\users\\eric\\desktop\\psec4a-eval-f
 set_global_assignment -name SEARCH_PATH "c:\\users\\eric\\desktop\\psec4a-eval-firmware\\rtl"
 set_global_assignment -name SEARCH_PATH "c:\\users\\eric\\desktop\\psec4a-eval-firmware\\rtl\\usb"
 set_global_assignment -name USE_SIGNALTAP_FILE "../signal_tap/tap-psec4a-adc.stp"
-set_global_assignment -name VHDL_FILE ../rtl/ibuf.vhd
-set_global_assignment -name VHDL_FILE ../rtl/pll2.vhd
-set_global_assignment -name VHDL_FILE ../rtl/Slow_Clocks.vhd
-set_global_assignment -name VERILOG_FILE ../rtl/verilog_lib/signal_sync.v
-set_global_assignment -name VERILOG_FILE ../rtl/verilog_lib/flag_sync.v
-set_global_assignment -name VHDL_FILE ../rtl/usb/usb.vhd
-set_global_assignment -name VHDL_FILE ../rtl/usb/iobuf.vhd
-set_global_assignment -name VHDL_FILE ../rtl/psec4a_eval_top.vhd
-set_global_assignment -name QIP_FILE ../rtl/usb/iobuf.qip
-set_global_assignment -name QIP_FILE ../rtl/pll0.qip
-set_global_assignment -name VHDL_FILE ../rtl/reset.vhd
-set_global_assignment -name VHDL_FILE ../rtl/psec4a_serial.vhd
-set_global_assignment -name VHDL_FILE ../rtl/defs.vhd
-set_global_assignment -name VHDL_FILE ../rtl/spi_write.vhd
-set_global_assignment -name VHDL_FILE ../rtl/registers.vhd
-set_global_assignment -name VHDL_FILE ../rtl/pulse_stretcher_sync.vhd
-set_global_assignment -name VHDL_FILE ../rtl/rdout_controller.vhd
-set_global_assignment -name SIGNALTAP_FILE "../tap-psec4a-serial.stp"
-set_global_assignment -name VHDL_FILE ../rtl/psec4a_core.vhd
-set_global_assignment -name VHDL_FILE ../rtl/DAC_SERIALIZER.vhd
-set_global_assignment -name VHDL_FILE ../rtl/DAC_MAIN_LTC2600.vhd
-set_global_assignment -name SIGNALTAP_FILE "../signal_tap/tap-psec4a-serial.stp"
-set_global_assignment -name VHDL_FILE ../rtl/rdout_controller_v2.vhd
-set_global_assignment -name QIP_FILE ../rtl/pll1.qip
-set_global_assignment -name SIGNALTAP_FILE "../signal_tap/tap-psec4a-usbrw.stp"
-set_global_assignment -name SIGNALTAP_FILE "../signal_tap/tap-psec4a-readout.stp"
-set_global_assignment -name VHDL_FILE ../rtl/wilkinson_feedback_loop.vhd
-set_global_assignment -name SDC_FILE timing.sdc
-set_global_assignment -name SIGNALTAP_FILE "../signal_tap/tap-psec4a-adc.stp"
 set_global_assignment -name SLD_NODE_CREATOR_ID 110 -section_id auto_signaltap_0
 set_global_assignment -name SLD_NODE_ENTITY_NAME sld_signaltap -section_id auto_signaltap_0
 set_instance_assignment -name CONNECT_TO_SLD_NODE_ENTITY_PORT acq_trigger_in[0] -to "psec4a_core:xPSEC4A_CNTRL|comp_sel_o[0]" -section_id auto_signaltap_0
@@ -321,4 +292,35 @@ set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_INVERSION_MASK=00
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_INVERSION_MASK_LENGTH=68" -section_id auto_signaltap_0
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_NODE_CRC_LOWORD=59056" -section_id auto_signaltap_0
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_NODE_CRC_HIWORD=12881" -section_id auto_signaltap_0
+set_global_assignment -name VHDL_FILE ../rtl/fifo.vhd
+set_global_assignment -name VHDL_FILE ../rtl/ibuf.vhd
+set_global_assignment -name VHDL_FILE ../rtl/pll2.vhd
+set_global_assignment -name VHDL_FILE ../rtl/Slow_Clocks.vhd
+set_global_assignment -name VERILOG_FILE ../rtl/verilog_lib/signal_sync.v
+set_global_assignment -name VERILOG_FILE ../rtl/verilog_lib/flag_sync.v
+set_global_assignment -name VHDL_FILE ../rtl/usb/usb.vhd
+set_global_assignment -name VHDL_FILE ../rtl/usb/iobuf.vhd
+set_global_assignment -name VHDL_FILE ../rtl/psec4a_eval_top.vhd
+set_global_assignment -name QIP_FILE ../rtl/usb/iobuf.qip
+set_global_assignment -name QIP_FILE ../rtl/pll0.qip
+set_global_assignment -name VHDL_FILE ../rtl/reset.vhd
+set_global_assignment -name VHDL_FILE ../rtl/psec4a_serial.vhd
+set_global_assignment -name VHDL_FILE ../rtl/defs.vhd
+set_global_assignment -name VHDL_FILE ../rtl/spi_write.vhd
+set_global_assignment -name VHDL_FILE ../rtl/registers.vhd
+set_global_assignment -name VHDL_FILE ../rtl/pulse_stretcher_sync.vhd
+set_global_assignment -name VHDL_FILE ../rtl/rdout_controller.vhd
+set_global_assignment -name SIGNALTAP_FILE "../tap-psec4a-serial.stp"
+set_global_assignment -name VHDL_FILE ../rtl/psec4a_core.vhd
+set_global_assignment -name VHDL_FILE ../rtl/DAC_SERIALIZER.vhd
+set_global_assignment -name VHDL_FILE ../rtl/DAC_MAIN_LTC2600.vhd
+set_global_assignment -name SIGNALTAP_FILE "../signal_tap/tap-psec4a-serial.stp"
+set_global_assignment -name VHDL_FILE ../rtl/rdout_controller_v2.vhd
+set_global_assignment -name QIP_FILE ../rtl/pll1.qip
+set_global_assignment -name SIGNALTAP_FILE "../signal_tap/tap-psec4a-usbrw.stp"
+set_global_assignment -name SIGNALTAP_FILE "../signal_tap/tap-psec4a-readout.stp"
+set_global_assignment -name VHDL_FILE ../rtl/wilkinson_feedback_loop.vhd
+set_global_assignment -name SDC_FILE timing.sdc
+set_global_assignment -name SIGNALTAP_FILE "../signal_tap/tap-psec4a-adc.stp"
+set_global_assignment -name VHDL_FILE ../rtl/psec4a_data.vhd
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

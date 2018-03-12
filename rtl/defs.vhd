@@ -31,6 +31,7 @@ constant firmware_year 		: std_logic_vector(define_register_size-define_address_
 
 constant psec4a_dac_bits : integer := 10;
 constant psec4a_num_dacs : integer := 18;
+constant psec4a_num_channels : integer := 8;
 
 type psec4a_dac_array_type is array (psec4a_num_dacs-1 downto 0) of std_logic_vector(psec4a_dac_bits-1 downto 0);
 

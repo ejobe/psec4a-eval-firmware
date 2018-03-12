@@ -4,7 +4,7 @@
 -- FILE:         psec4a_core.vhd
 -- AUTHOR:       e.oberla
 -- EMAIL         eric.oberla@gmail.com
--- DATE:         2/2018
+-- DATE:         2/2018...
 --
 -- DESCRIPTION:  handles psec4a sampling/digitization/readout
 --
@@ -31,10 +31,9 @@ port(
 	comp_sel_o		:	buffer	std_logic_vector(2 downto 0); --//psec4a comparator select
 	latch_sel_o		:	out	std_logic_vector(3 downto 0); --//psec4a 'latch' decoder
 	rdout_clk_o		:  out	std_logic; --//psec4a readout clock
-	chan_sel_o		:	buffer	std_logic_vector(2 downto 0); --//psec4a readout channel select
+	chan_sel_o		:	buffer	std_logic_vector(2 downto 0)); --//psec4a readout channel select
 	
-	psec4a_dat_i	:	in		std_logic_vector(10 downto 0); --//psec4a data bus
-	psec4a_trig_i	:	in		std_logic_vector(5 downto 0)); --//(whoops, only 6/8 trig lines routed on the board!)
+	--psec4a_trig_i	:	in		std_logic_vector(5 downto 0)); --//(whoops, only 6/8 trig lines routed on the board!)
 
 end psec4a_core;
 
@@ -213,7 +212,6 @@ begin
 			end if;
 			
 		when start_st =>
-		
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
 			rdout_clear_int <= '0';
@@ -252,8 +250,7 @@ begin
 			
 		--------------------------------------------------------
 		-- ADC control
-		--------------------------------------------------------
-			
+		--------------------------------------------------------	
 		when ramp_st =>
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
@@ -411,8 +408,6 @@ begin
 				psec4a_conversion_state <= psec4a_next_load_latch_state;
 			end if;
 			
-		
-		
 		--------------------------------------------------------
 		-- readout control
 		--------------------------------------------------------
@@ -483,7 +478,7 @@ begin
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= readout_st;	
 				
-			--//first clock cycle, keep readout clear, but enable clock
+			--//first clock cycle, keep readout clear, enable clock
 			elsif conv_counter_int = 0 then
 				rdout_clear_int <= '1';
 				rdout_token_int <= '0';
@@ -605,7 +600,7 @@ begin
 	end if;
 end process;
 
-
+------------------------------------------------------------------------
 ------------------------------------
 --psec4a `latch decoder': bits 2 downto 0
 -- 0  adc bit latch sel 0
@@ -618,12 +613,10 @@ end process;
 -- 7  read token in
 --EN  bit 3 ['0'=all decoded outputs at 0; '1'=selected output active]
 ------------------------------------
-
---//simple test for DACs:
---apply reset on serial interface/clock the load enable:
 process(rst_i, digz_latch_transp, digz_latch_sel, adc_clear_int, 
          rdout_clear_int, rdout_token_int)
 begin
+	--apply reset on serial interfae on rst_i only
 	if rst_i = '1' then
 		latch_sel_o <= "1110";
 	
@@ -649,7 +642,5 @@ begin
 	end if;
 end process;
 -----
-		
-	
+------------------------------------------------------------------------		
 end rtl;
-	 

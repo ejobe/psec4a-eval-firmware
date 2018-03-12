@@ -177,10 +177,8 @@ port map(
 	comp_sel_o		=> psec4a_compsel_o,
 	latch_sel_o		=> psec4a_latchsel_o, 
 	rdout_clk_o		=> psec4a_read_clk_o,
-	chan_sel_o		=> psec4a_chansel_o,
-	psec4a_dat_i	=> psec4a_d_i,
-	psec4a_trig_i	=> psec4a_trigger_i);
-
+	chan_sel_o		=> psec4a_chansel_o);
+	
 xUSB : entity work.usb_32bit
 port map(
 	CORE_CLK				=> clk_usb_48Mhz, --clk_25MHz_sig,

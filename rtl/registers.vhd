@@ -74,17 +74,17 @@ begin
 		registers_io(81) <= x"000007";  --//ro count target high 16 bits
 		registers_io(82) <= x"000001";  --//ro firmware feedback enable
 		registers_io(83) <= x"000000";  --//trig sign (LSB)
-		registers_io(84) <= x"000000";  --//dll speed select(LSB)
+		registers_io(84) <= x"000001";  --//dll speed select(LSB) [1=fast mode]
 		registers_io(85) <= x"000000";  --//reset_xfer enable (LSB)
 		--// DAC values
 		registers_io(86) <= x"0002FA";  	--//ROvcp
 		registers_io(87) <= x"000000";  	--//BiasTrigN
-		registers_io(88) <= x"0003FF";  	--//BiasXfer
-		registers_io(89) <= x"0003FA";  	--//BiasRampBuf
-		registers_io(90) <= x"0003FF";	--//BiasComp
-		registers_io(91) <= x"000000";   --//BiasDllLast
-		registers_io(92) <= x"000000"; 	--//BiasDllFirst
-		registers_io(93) <= x"0001FA";	--//BiasDllp
+		registers_io(88) <= x"000280";  	--//BiasXfer
+		registers_io(89) <= x"000280";  	--//BiasRampBuf
+		registers_io(90) <= x"000280";	--//BiasComp
+		registers_io(91) <= x"000100";   --//BiasDllLast  -- p bias
+		registers_io(92) <= x"000100"; 	--//BiasDllFirst -- p bias
+		registers_io(93) <= x"000200";	--//BiasDllp
 		registers_io(94) <= x"000200";	--//BiasDlln
 		registers_io(95) <= x"000000";	--//TrigThresh1
 		registers_io(96) <= x"000000";

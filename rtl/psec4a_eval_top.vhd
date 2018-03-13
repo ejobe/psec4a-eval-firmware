@@ -67,18 +67,14 @@ signal clk_usb_48Mhz		:	std_logic;
 signal clk_mezz_internal:  std_logic;
 --signal psec4a_write_clk_buf:  std_logic;
 
---//signals used to update the psec4a latch decoder
-signal psec4a_latch_sel_int : std_logic_vector(1 downto 0);
-signal psec4a_latch_transp_int : std_logic;
-signal psec4a_adc_clear_int : std_logic;
-signal psec4a_rdout_clear_int : std_logic;
-signal psec4a_rdout_start_int : std_logic;
-
 signal usb_done_sig		:	std_logic;
 signal usb_slwr_sig		:	std_logic;
 signal usb_instr_sig		:	std_logic_vector(31 downto 0);
 signal usb_instr_rdy_sig:	std_logic;
 signal usb_start_wr_sig	:	std_logic;
+
+signal psec4a_read_clk 	:  std_logic;
+signal psec4a_chan_sel 	:  std_logic_vector(2 downto 0);
 
 signal register_array 	:	register_array_type;
 signal reg_addr_sig		:  std_logic_vector(define_address_size-1 downto 0);
@@ -162,6 +158,9 @@ clk_mezz_internal <= psec4a_write_clk_i;
 clk_usb_48Mhz <= USB_IFCLK;
 USB_RDY(1) <= usb_slwr_sig;
 
+psec4a_read_clk_o <= psec4a_read_clk;
+psec4a_chansel_o <= psec4a_chan_sel;
+
 xPSEC4A_CNTRL : entity work.psec4a_core 
 port map(
 	rst_i				=> global_reset_sig,
@@ -176,9 +175,18 @@ port map(
 	ring_osc_en_o	=> psec4a_ringosc_en_o,
 	comp_sel_o		=> psec4a_compsel_o,
 	latch_sel_o		=> psec4a_latchsel_o, 
-	rdout_clk_o		=> psec4a_read_clk_o,
-	chan_sel_o		=> psec4a_chansel_o);
-	
+	rdout_clk_o		=> psec4a_read_clk,
+	chan_sel_o		=> psec4a_chan_sel);
+
+xPSEC4A_DATA : entity work.psec4a_data
+port map(
+	rst_i				=> global_reset_sig,
+	wrclk_i			=> psec4a_read_clk,
+	registers_i		=> register_array,
+	psec4a_dat_i	=> psec4a_d_i,
+	psec4a_ch_sel_i=> psec4a_chan_sel,
+	fifo_rd_data_o	=> readout_register_array(4));
+
 xUSB : entity work.usb_32bit
 port map(
 	CORE_CLK				=> clk_usb_48Mhz, --clk_25MHz_sig,

@@ -139,11 +139,11 @@ psec4a_d_i[5]                : 68        : input  : 1.2 V             :         
 psec4a_write_clk_i           : 69        : input  : 1.2 V             :         : 3         : Y              
 GND*                         : 70        :        :                   :         : 3         :                
 psec4a_xferadr_o[0]          : 71        : output : 1.2 V             :         : 3         : Y              
-psec4a_latchsel_o[0]         : 72        : output : 1.2 V             :         : 3         : Y              
-psec4a_ringosc_en_o          : 73        : output : 1.2 V             :         : 3         : Y              
+psec4a_dllstart_o            : 72        : output : 1.2 V             :         : 3         : Y              
+psec4a_trigger_i[6]          : 73        : input  : 1.2 V             :         : 3         : Y              
 VCCINT                       : 74        : power  :                   : 1.2V    :           :                
 GND                          : 75        : gnd    :                   :         :           :                
-psec4a_latchsel_o[3]         : 76        : output : 1.2 V             :         : 3         : Y              
+psec4a_chansel_o[2]          : 76        : output : 1.2 V             :         : 3         : Y              
 VCCIO3                       : 77        : power  :                   : 1.2V    : 3         :                
 GND*                         : 78        :        :                   :         : 3         :                
 GND                          : 79        : gnd    :                   :         :           :                
@@ -151,7 +151,7 @@ GND*                         : 80        :        :                   :         
 GND*                         : 81        :        :                   :         : 3         :                
 psec4a_d_i[2]                : 82        : input  : 1.2 V             :         : 3         : Y              
 psec4a_d_i[1]                : 83        : input  : 1.2 V             :         : 3         : Y              
-psec4a_latchsel_o[2]         : 84        : output : 1.2 V             :         : 3         : Y              
+psec4a_chansel_o[1]          : 84        : output : 1.2 V             :         : 3         : Y              
 VCCINT                       : 85        : power  :                   : 1.2V    :           :                
 GND                          : 86        : gnd    :                   :         :           :                
 psec4a_d_i[0]                : 87        : input  : 1.2 V             :         : 3         : Y              
@@ -179,7 +179,7 @@ GND*                         : 108       :        :                   :         
 led_2                        : 109       : output : 3.0-V LVTTL       :         : 4         : Y              
 GND*                         : 110       :        :                   :         : 4         :                
 GND*                         : 111       :        :                   :         : 4         :                
-GND*                         : 112       :        :                   :         : 4         :                
+psec4a_reset_xfer_en_o       : 112       : bidir  : 3.0-V LVTTL       :         : 4         : N              
 GND*                         : 113       :        :                   :         : 4         :                
 GND*                         : 114       :        :                   :         : 4         :                
 VCCINT                       : 115       : power  :                   : 1.2V    :           :                
@@ -187,7 +187,7 @@ GND                          : 116       : gnd    :                   :         
 GND*                         : 117       :        :                   :         : 4         :                
 GND*                         : 118       :        :                   :         : 4         :                
 GND*                         : 119       :        :                   :         : 4         :                
-GND*                         : 120       :        :                   :         : 4         :                
+psec4a_dllspeed_o            : 120       : bidir  : 3.0-V LVTTL       :         : 4         : N              
 VCCD_PLL4                    : 121       : power  :                   : 1.2V    :           :                
 GNDA4                        : 122       : gnd    :                   :         :           :                
 VCCA4                        : 123       : power  :                   : 2.5V    :           :                
@@ -199,7 +199,7 @@ psec4a_trigger_i[4]          : 128       : input  : 1.2 V             :         
 VCCINT                       : 129       : power  :                   : 1.2V    :           :                
 GND                          : 130       : gnd    :                   :         :           :                
 psec4a_sle_o                 : 131       : output : 1.2 V             :         : 5         : Y              
-psec4a_dllstart_o            : 132       : output : 1.2 V             :         : 5         : Y              
+psec4a_latchsel_o[0]         : 132       : output : 1.2 V             :         : 5         : Y              
 psec4a_d_i[9]                : 133       : input  : 1.2 V             :         : 5         : Y              
 psec4a_xferadr_o[1]          : 134       : output : 1.2 V             :         : 5         : Y              
 psec4a_d_i[6]                : 135       : input  : 1.2 V             :         : 5         : Y              
@@ -213,7 +213,7 @@ psec4a_ringosc_mon_i         : 142       : input  : 1.2 V             :         
 GND*                         : 143       :        :                   :         : 5         :                
 psec4a_xferadr_o[3]          : 144       : output : 1.2 V             :         : 5         : Y              
 psec4a_read_clk_o            : 145       : output : 1.2 V             :         : 5         : Y              
-psec4a_dllspeed_o            : 146       : bidir  : 1.2 V             :         : 5         : Y              
+psec4a_trigger_i[7]          : 146       : input  : 1.2 V             :         : 5         : Y              
 psec4a_sdat_o                : 147       : output : 1.2 V             :         : 5         : Y              
 psec4a_d_i[7]                : 148       : input  : 1.2 V             :         : 5         : Y              
 psec4a_vcdl_output_i         : 149       : input  : 1.2 V             :         : 5         : Y              
@@ -226,19 +226,19 @@ MSEL0                        : 155       :        :                   :         
 GND                          : 156       : gnd    :                   :         :           :                
 MSEL1                        : 157       :        :                   :         : 6         :                
 MSEL2                        : 158       :        :                   :         : 6         :                
-psec4a_chansel_o[0]          : 159       : output : 1.2 V             :         : 6         : Y              
-psec4a_chansel_o[1]          : 160       : output : 1.2 V             :         : 6         : Y              
+psec4a_latchsel_o[1]         : 159       : output : 1.2 V             :         : 6         : Y              
+psec4a_latchsel_o[2]         : 160       : output : 1.2 V             :         : 6         : Y              
 psec4a_trigger_i[0]          : 161       : input  : 1.2 V             :         : 6         : Y              
 ~ALTERA_nCEO~ / RESERVED_OUTPUT_OPEN_DRAIN : 162       : output : 1.2 V             :         : 6         : Y              
 VCCINT                       : 163       : power  :                   : 1.2V    :           :                
 psec4a_sclk_o                : 164       : output : 1.2 V             :         : 6         : Y              
 GND                          : 165       : gnd    :                   :         :           :                
 psec4a_trigger_i[1]          : 166       : input  : 1.2 V             :         : 6         : Y              
-psec4a_latchsel_o[1]         : 167       : output : 1.2 V             :         : 6         : Y              
+psec4a_chansel_o[0]          : 167       : output : 1.2 V             :         : 6         : Y              
 psec4a_d_i[10]               : 168       : input  : 1.2 V             :         : 6         : Y              
-psec4a_chansel_o[2]          : 169       : output : 1.2 V             :         : 6         : Y              
+psec4a_latchsel_o[3]         : 169       : output : 1.2 V             :         : 6         : Y              
 VCCIO6                       : 170       : power  :                   : 1.2V    : 6         :                
-psec4a_reset_xfer_en_o       : 171       : bidir  : 1.2 V             :         : 6         : Y              
+psec4a_ringosc_en_o          : 171       : output : 1.2 V             :         : 6         : Y              
 GND                          : 172       : gnd    :                   :         :           :                
 GND*                         : 173       :        :                   :         : 6         :                
 VCCINT                       : 174       : power  :                   : 1.2V    :           :                

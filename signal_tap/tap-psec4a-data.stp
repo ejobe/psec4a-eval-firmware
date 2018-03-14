@@ -1,11 +1,11 @@
 <session jtag_chain="USB-Blaster [USB-0]" jtag_device="@1: EP3C25/EP4CE22 (0x020F30DD)" sof_file="">
   <display_tree gui_logging_enabled="0">
-    <display_branch instance="auto_signaltap_0" signal_set="USE_GLOBAL_TEMP" trigger="USE_GLOBAL_TEMP"/>
+    <display_branch instance="auto_signaltap_0" log="USE_GLOBAL_TEMP" signal_set="USE_GLOBAL_TEMP" trigger="USE_GLOBAL_TEMP"/>
   </display_tree>
   <instance entity_name="sld_signaltap" is_auto_node="yes" is_expanded="true" name="auto_signaltap_0" source_file="sld_signaltap.vhd">
     <node_ip_info instance_id="0" mfg_id="110" node_id="0" version="6"/>
     <position_info>
-      <single attribute="active tab" value="1"/>
+      <single attribute="active tab" value="0"/>
       <single attribute="data horizontal scroll position" value="0"/>
       <single attribute="data vertical scroll position" value="0"/>
       <single attribute="zoom level denominator" value="1"/>
@@ -155,7 +155,7 @@
           <net is_signal_inverted="no" name="psec4a_core:xPSEC4A_CNTRL|rdout_clk_o"/>
         </setup_view>
       </presentation>
-      <trigger attribute_mem_mode="false" gap_record="true" global_temp="1" name="trigger: 2018/03/14 10:50:18  #1" position="pre" power_up_trigger_mode="false" record_data_gap="true" segment_size="64" storage_mode="off" storage_qualifier_disabled="no" storage_qualifier_port_is_pin="false" storage_qualifier_port_name="auto_stp_external_storage_qualifier" storage_qualifier_port_tap_mode="classic" trigger_in="dont_care" trigger_out="active high" trigger_type="circular">
+      <trigger CRC="2C9C8564" attribute_mem_mode="false" gap_record="true" global_temp="1" name="trigger: 2018/03/14 10:50:18  #1" position="pre" power_up_trigger_mode="false" record_data_gap="true" segment_size="64" storage_mode="off" storage_qualifier_disabled="no" storage_qualifier_port_is_pin="false" storage_qualifier_port_name="auto_stp_external_storage_qualifier" storage_qualifier_port_tap_mode="classic" trigger_in="dont_care" trigger_out="active high" trigger_type="circular">
         <power_up_trigger position="pre" storage_qualifier_disabled="no" trigger_in="dont_care" trigger_out="active high"/>
         <events use_custom_flow_control="no">
           <level enabled="yes" name="condition1" type="basic">'psec4a_core:xPSEC4A_CNTRL|chan_sel_o[1]' == rising edge
@@ -184,6 +184,10 @@
             <op_node/>
           </storage_qualifier_level>
         </storage_qualifier_events>
+        <log>
+          <data global_temp="1" name="log: 2018/03/14 10:52:56  #0" power_up_mode="false" sample_depth="64" trigger_position="8">1000000010000000000000100000001000000000000010000000100000000000001000000010000000000000100000001000000000000010000000100000000000001000000010000000000000100000000000000000000001000000000000000000000101011110000000000000010000001000000000000001011110101000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000010000001000000000000001000000100000000000000100000010000000000000</data>
+          <extradata>11111111T1111111111111111111111111111111111111111111111111111111</extradata>
+        </log>
       </trigger>
     </signal_set>
   </instance>

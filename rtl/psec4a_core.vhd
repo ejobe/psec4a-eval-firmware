@@ -58,6 +58,7 @@ signal adc_clear_int : std_logic;
 signal digz_latch_sel	 : std_logic_vector(1 downto 0);	
 signal digz_latch_transp : std_logic;
 signal latch_full : std_logic_vector(3 downto 0) := (others=>'0');
+signal latch_sel_int : std_logic_vector(3 downto 0);
 
 --//psec4a A/D conversion fsm:
 --type psec4a_conversion_state_type is (idle_st, start_st, digitize_st, latch_st, wait_for_rdout_st);
@@ -687,32 +688,37 @@ end process;
 -- 7  read token in
 --EN  bit 3 ['0'=all decoded outputs at 0; '1'=selected output active]
 ------------------------------------
+latch_sel_o(3) <= latch_sel_int(0);
+latch_sel_o(2) <= latch_sel_int(1);
+latch_sel_o(1) <= latch_sel_int(2);
+latch_sel_o(0) <= latch_sel_int(3);
+
 process(rst_i, digz_latch_transp, digz_latch_sel, adc_clear_int, 
          rdout_clear_int, rdout_token_int)
 begin
 	--apply reset on serial interfae on rst_i only
 	if rst_i = '1' then
-		latch_sel_o <= "1110";
+		latch_sel_int <= "1110";
 	
 	elsif digz_latch_transp = '1' then
 		case digz_latch_sel is
-			when "00" => latch_sel_o <= "1000";
-			when "01" => latch_sel_o <= "1001";
-			when "10" => latch_sel_o <= "1010";
-			when "11" => latch_sel_o <= "1011";
+			when "00" => latch_sel_int <= "1000";
+			when "01" => latch_sel_int <= "1001";
+			when "10" => latch_sel_int <= "1010";
+			when "11" => latch_sel_int <= "1011";
 		end case;
 	
 	elsif adc_clear_int = '1' then
-		latch_sel_o <= "1100";
+		latch_sel_int <= "1100";
 	
 	elsif rdout_clear_int = '1' then
-		latch_sel_o <= "1101";		
+		latch_sel_int <= "1101";		
 	
 	elsif rdout_token_int= '1' then
-		latch_sel_o <= "1111";	
+		latch_sel_int <= "1111";	
 	
 	else
-		latch_sel_o <= "0000";
+		latch_sel_int <= "0000";
 	end if;
 end process;
 -----

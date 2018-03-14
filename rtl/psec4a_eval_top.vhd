@@ -24,7 +24,7 @@ port(
 	psec4a_reset_xfer_en_o: inout std_logic;  --//also controllable with serial interface
 	psec4a_ringosc_en_o	:	out	std_logic;
 	psec4a_ringosc_mon_i	:	in		std_logic;
-	psec4a_trigger_i		:	in		std_logic_vector(5 downto 0);
+	psec4a_trigger_i		:	in		std_logic_vector(7 downto 0);
 	psec4a_compsel_o		:	out	std_logic_vector(2 downto 0);
 	psec4a_chansel_o		:	out	std_logic_vector(2 downto 0);
 	psec4a_rampstart_o	:	out	std_logic;

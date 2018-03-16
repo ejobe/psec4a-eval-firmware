@@ -187,7 +187,7 @@ GND                          : 116       : gnd    :                   :         
 GND*                         : 117       :        :                   :         : 4         :                
 GND*                         : 118       :        :                   :         : 4         :                
 GND*                         : 119       :        :                   :         : 4         :                
-psec4a_dllspeed_o            : 120       : bidir  : 3.0-V LVTTL       :         : 4         : N              
+GND*                         : 120       :        :                   :         : 4         :                
 VCCD_PLL4                    : 121       : power  :                   : 1.2V    :           :                
 GNDA4                        : 122       : gnd    :                   :         :           :                
 VCCA4                        : 123       : power  :                   : 2.5V    :           :                
@@ -248,7 +248,7 @@ psec4a_compsel_o[1]          : 177       : output : 1.2 V             :         
 VCCA2                        : 178       : power  :                   : 2.5V    :           :                
 GNDA2                        : 179       : gnd    :                   :         :           :                
 VCCD_PLL2                    : 180       : power  :                   : 1.2V    :           :                
-GND*                         : 181       :        :                   :         : 7         :                
+psec4a_dllspeed_o            : 181       : bidir  : 3.0-V LVTTL       :         : 7         : N              
 GND*                         : 182       :        :                   :         : 7         :                
 GND*                         : 183       :        :                   :         : 7         :                
 GND*                         : 184       :        :                   :         : 7         :                

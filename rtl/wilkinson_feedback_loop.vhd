@@ -44,14 +44,14 @@ architecture Behavioral of Wilkinson_Feedback_Loop is
         signal internal_COUNTER_CLEAR           : std_logic := '0';
         signal internal_COUNTER_VALUE           : unsigned(31 downto 0);
         signal internal_COUNTER_VALUE_LATCHED   : unsigned(31 downto 0);
-        signal internal_DESIRED_DAC_VALUE       : unsigned(psec4a_dac_bits-1 downto 0) := "1000000000";
+        signal internal_DESIRED_DAC_VALUE       : unsigned(psec4a_dac_bits-1 downto 0) := "0100000000"; 
         signal internal_DESIRED_DAC_VALUE_VALID : std_logic := '1';
 begin
         CURRENT_COUNT_VALUE <= std_logic_vector(internal_COUNTER_VALUE_LATCHED);
 
         process(REFRESH_CLOCK)
-                constant INITIAL_DAC_VALUE : unsigned(psec4a_dac_bits-1 downto 0) := "1000000000"; 
-                constant MINIMUM_DAC_VALUE : unsigned(psec4a_dac_bits-1 downto 0) := "0100000000";
+                constant INITIAL_DAC_VALUE : unsigned(psec4a_dac_bits-1 downto 0) := "0100000000"; 
+                constant MINIMUM_DAC_VALUE : unsigned(psec4a_dac_bits-1 downto 0) := "0001000000";
                 constant MAXIMUM_DAC_VALUE : unsigned(psec4a_dac_bits-1 downto 0) := "1100000000";
         begin
                 if (rising_edge(REFRESH_CLOCK)) then
@@ -79,11 +79,11 @@ begin
                                         if (ENABLE_FEEDBACK = '0') then
                                                 internal_DESIRED_DAC_VALUE <= INITIAL_DAC_VALUE;
                                         else
-                                                if ( internal_COUNTER_VALUE_LATCHED > unsigned(DESIRED_COUNT_VALUE) + 2 ) then
+                                                if ( internal_COUNTER_VALUE_LATCHED > unsigned(DESIRED_COUNT_VALUE) + 4 ) then
                                                         if ( internal_DESIRED_DAC_VALUE < MAXIMUM_DAC_VALUE ) then
                                                                 internal_DESIRED_DAC_VALUE <= internal_DESIRED_DAC_VALUE + 1;
                                                         end if;
-                                                elsif ( internal_COUNTER_VALUE_LATCHED < unsigned(DESIRED_COUNT_VALUE) - 2 ) then
+                                                elsif ( internal_COUNTER_VALUE_LATCHED < unsigned(DESIRED_COUNT_VALUE) - 4 ) then
                                                         if ( internal_DESIRED_DAC_VALUE > MINIMUM_DAC_VALUE ) then
                                                                 internal_DESIRED_DAC_VALUE <= internal_DESIRED_DAC_VALUE - 1 ;
                                                         end if;

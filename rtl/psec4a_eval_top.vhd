@@ -168,7 +168,6 @@ port map(
 	clk_reg_i		=> clk_usb_48Mhz,
 	clk_mezz_i		=> clk_mezz_internal,
 	registers_i		=> register_array,
-	
 	dll_start_o		=> psec4a_dllstart_o,
 	xfer_adr_o		=> psec4a_xferadr_o,
 	ramp_o			=> psec4a_rampstart_o,
@@ -185,6 +184,7 @@ port map(
 	registers_i		=> register_array,
 	psec4a_dat_i	=> psec4a_d_i,
 	psec4a_ch_sel_i=> psec4a_chan_sel,
+	chk_used_words_o => readout_register_array(5),
 	fifo_rd_data_o	=> readout_register_array(4));
 
 xUSB : entity work.usb_32bit

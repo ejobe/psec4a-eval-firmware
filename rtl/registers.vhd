@@ -70,7 +70,7 @@ begin
 		
 		registers_io(78) <= x"000002";  --//how many clock cycles to hold stuff in reset before starting up the adc conversion
 		--registers_io(79) <= x"000010"; --//ramp count --> how many clk cycles to wait for ramp to finish ADC [debugging value]
-		registers_io(79) <= x"000090";  --//ramp count --> how many clk cycles to wait for ramp to finish ADC
+		registers_io(79) <= x"00004A";  --//ramp count --> how many clk cycles to wait for ramp to finish ADC
 		registers_io(80) <= x"007359";  --//ro count target low 16 bits  ( set to 1GHz / 2^11))
 		registers_io(81) <= x"000007";  --//ro count target high 16 bits
 		registers_io(82) <= x"000001";  --//ro firmware feedback enable
@@ -78,15 +78,15 @@ begin
 		registers_io(84) <= x"000001";  --//dll speed select(LSB) [1=fast mode]
 		registers_io(85) <= x"000000";  --//reset_xfer enable (LSB)
 		--// DAC values
-		registers_io(86) <= x"0002FA";  	--//ROvcp
+		registers_io(86) <= x"000100";  	--//ROvcp
 		registers_io(87) <= x"000000";  	--//BiasTrigN
-		registers_io(88) <= x"000280";  	--//BiasXfer
-		registers_io(89) <= x"000280";  	--//BiasRampBuf
-		registers_io(90) <= x"000280";	--//BiasComp
+		registers_io(88) <= x"000220";  	--//BiasXfer
+		registers_io(89) <= x"000220";  	--//BiasRampBuf
+		registers_io(90) <= x"000220";	--//BiasComp
 		registers_io(91) <= x"000100";   --//BiasDllLast  -- p bias
 		registers_io(92) <= x"000100"; 	--//BiasDllFirst -- p bias
-		registers_io(93) <= x"000200";	--//BiasDllp
-		registers_io(94) <= x"000200";	--//BiasDlln
+		registers_io(93) <= x"000200"; --x"0001A0";	--//BiasDllp
+		registers_io(94) <= x"000200";--x"000250";	--//BiasDlln
 		registers_io(95) <= x"000000";	--//TrigThresh1
 		registers_io(96) <= x"000000";
 		registers_io(97) <= x"000000";
@@ -95,10 +95,10 @@ begin
 		registers_io(100) <= x"000000";
 		registers_io(101) <= x"000000";
 		registers_io(102) <= x"000000";  --//TrigThresh8
-		registers_io(103) <= x"000200";	--//BiasRampSlope
+		registers_io(103) <= x"000210";	--//BiasRampSlope
 		--//external DAC values		
 		registers_io(104) <= x"008000";	--//Vped
-		registers_io(105) <= x"001000";	--//VresetXfer
+		registers_io(105) <= x"004000";	--//VresetXfer
 
 		registers_io(109) <= x"000001";  --//read register [109]
 		address_o <= x"00";

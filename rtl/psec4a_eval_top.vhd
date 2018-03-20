@@ -74,6 +74,7 @@ signal usb_instr_rdy_sig:	std_logic;
 signal usb_start_wr_sig	:	std_logic;
 
 signal psec4a_read_clk 	:  std_logic;
+signal psec4a_readout_valid : std_logic;
 signal psec4a_chan_sel 	:  std_logic_vector(2 downto 0);
 
 signal register_array 	:	register_array_type;
@@ -175,6 +176,7 @@ port map(
 	comp_sel_o		=> psec4a_compsel_o,
 	latch_sel_o		=> psec4a_latchsel_o, 
 	rdout_clk_o		=> psec4a_read_clk,
+	rdout_valid_o  => psec4a_readout_valid,
 	chan_sel_o		=> psec4a_chan_sel);
 
 xPSEC4A_DATA : entity work.psec4a_data
@@ -184,6 +186,7 @@ port map(
 	registers_i		=> register_array,
 	psec4a_dat_i	=> psec4a_d_i,
 	psec4a_ch_sel_i=> psec4a_chan_sel,
+	data_valid_i	=> psec4a_readout_valid,
 	chk_used_words_o => readout_register_array(5),
 	fifo_rd_data_o	=> readout_register_array(4));
 

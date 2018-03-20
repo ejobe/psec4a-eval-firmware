@@ -31,6 +31,7 @@ port(
 	comp_sel_o		:	buffer	std_logic_vector(2 downto 0); --//psec4a comparator select
 	latch_sel_o		:	out	std_logic_vector(3 downto 0); --//psec4a 'latch' decoder
 	rdout_clk_o		:  out	std_logic; --//psec4a readout clock
+	rdout_valid_o	:	out	std_logic;
 	chan_sel_o		:	buffer	std_logic_vector(2 downto 0)); --//psec4a readout channel select
 	
 	--psec4a_trig_i	:	in		std_logic_vector(5 downto 0)); --//(whoops, only 6/8 trig lines routed on the board!)
@@ -53,6 +54,11 @@ signal rdout_clk_en_int : std_logic;
 signal rdout_clear_int : std_logic;
 signal rdout_token_int : std_logic;
 signal adc_clear_int : std_logic;
+--//signals to handle dll reset from startup or from user input:
+signal dll_reset_user_flag_int : std_logic;
+signal dll_start_user_int : std_logic;
+signal dll_start_startup_int : std_logic;
+signal dll_startup_counter_int : std_logic_vector(31 downto 0);
 
 --//ADC counter latches can be controlled by ADC or readout
 signal digz_latch_sel	 : std_logic_vector(1 downto 0);	
@@ -95,8 +101,6 @@ end component;
 	
 begin
 
-dll_start_o <= rst_i;
-
 proc_psec4a_clk : process(clk_i, rdout_clk_en_int)
 begin
 case rdout_clk_en_int is
@@ -108,7 +112,33 @@ end process;
 xSW_TRIG_SYNC : flag_sync
 port map(clkA => clk_reg_i, clkB=> clk_mezz_i, in_clkA=>registers_i(124)(0),
 			out_clkB => sw_trig_flag_int);
-	
+
+-----------
+--dll handling:			
+-----------
+xDLL_START_FLAG : flag_sync
+port map(clkA => clk_reg_i, clkB=> clk_i, in_clkA=>registers_i(126)(0),
+			out_clkB => dll_reset_user_flag_int);
+			
+xDLL_START_PULSE : entity work.pulse_stretcher_sync(rtl)
+generic map(stretch => 10000000)
+port map(rst_i => rst_i, clk_i => clk_i, pulse_i => dll_reset_user_flag_int, pulse_o=> dll_start_user_int);
+
+proc_dll_startup : process(rst_i, clk_i)
+begin
+	if rst_i = '1' then
+		dll_start_startup_int <= '1'; 
+		dll_startup_counter_int <= (others=>'0');
+	elsif rising_edge(clk_i) then
+		dll_startup_counter_int <= dll_startup_counter_int + 1;
+		if dll_startup_counter_int > 50000000 then
+			dll_start_startup_int <= '0'; 
+		end if;
+	end if;
+end process;
+
+dll_start_o <= dll_start_startup_int or dll_start_user_int;
+----------- end dll handling
 ----------------------------------------------------------------------------------
 --//PRIMARY SAMPLING and TRANSFER CONTROL NEEDS TO BE CLOCKED w/ clk_mezz_i
 --//cycle through psec4a analog blocks, only handle sw triggers for now
@@ -180,6 +210,7 @@ begin
 		--//counter for various use
 		conv_counter_int <= (others=>'0');	
 		--//readout-specific signals
+		rdout_valid_o <= '0';
 		rdout_clear_int <= '0';    --//clear signal for readout shift register
 		rdout_clk_en_int <= '0'; --//gate for readout clock sent to psec4a
 		chan_sel_o <= "000";      --//psec4a channel select decoder
@@ -209,6 +240,7 @@ begin
 			--//counter for various use
 			conv_counter_int <= (others=>'0');
 			--//readout-specific signals
+			rdout_valid_o <= '0';
 			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
@@ -226,6 +258,7 @@ begin
 		when start_st =>
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
+			rdout_valid_o <= '0';
 			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
@@ -238,7 +271,7 @@ begin
 			--//adc-specific signals
 			ramp_o <= '0'; 
 			ring_osc_en_o <= '0';
-			adc_clear_int <= '0'; --//clear adc in prep for conversion
+			adc_clear_int <= '0';
 			
 			psec4a_next_load_latch_state <= load_latch0_st; --//always have to start by loading latch 0
 			psec4a_next_empty_latch_state <= empty_latch2_st;
@@ -267,6 +300,7 @@ begin
 		when ramp_st =>
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
+			rdout_valid_o <= '0';
 			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
@@ -274,14 +308,13 @@ begin
 			--//adc-latch signals: used for both adc and readout
 			digz_latch_sel <= "00";
 			digz_latch_transp <= '0';
-			toggle_latch_decode_en <= '0';
 			latch_full <= latch_full;
 			
 			if conv_counter_int > ramp_length_count_int + 3 then
 				ramp_o <= '0'; --// ramp charged up
 				ring_osc_en_o <= '0'; --//ro off
 				adc_clear_int <= '0'; --//release adc clear
-				--toggle_latch_decode_en <= '0'; 
+				toggle_latch_decode_en <= '0'; 
 				conv_counter_int <= (others=>'0'); --//clear conversion couner
 				dig_count := dig_count + 1; --//increment digitized block count
 				psec4a_conversion_state <= psec4a_next_load_latch_state;		
@@ -289,29 +322,29 @@ begin
 			elsif conv_counter_int = 2 then			
 				ramp_o <= '1'; --//
 				ring_osc_en_o <= '0'; --//keep ro off
-				adc_clear_int <= '0'; --// 
-				--toggle_latch_decode_en <= '0';
+				adc_clear_int <= '1'; --//keep this signal high to prevent changing bits on latch decoder
+				toggle_latch_decode_en <= '0'; --//disable latch decoder - adc clear released
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= ramp_st;
 			elsif conv_counter_int = 1 then			
 				ramp_o <= '1'; --//
 				ring_osc_en_o <= '0'; --//keep ro off
 				adc_clear_int <= '1'; --//adc clear
-				--toggle_latch_decode_en <= '1'; --//toggle latch decoder, which loads the adc clear signal
+				toggle_latch_decode_en <= '1'; --//toggle latch decoder, which loads the adc clear signal
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= ramp_st;
 			elsif conv_counter_int = 0 then			
 				ramp_o <= '1'; --//release ramp clear, ramp cap charging up
 				ring_osc_en_o <= '0'; --//keep ro off
 				adc_clear_int <= '1'; --//clear adc
-				--toggle_latch_decode_en <= '0'; 
+				toggle_latch_decode_en <= '0'; 
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= ramp_st;
 			else
 				ramp_o <= '0'; --// ramp cap charging up
 				ring_osc_en_o <= '1'; --//enable ring oscillator buffer drivers
 				adc_clear_int <= '0'; --//
-				--toggle_latch_decode_en <= '0';
+				toggle_latch_decode_en <= '0';
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= ramp_st;
 			end if;
@@ -324,6 +357,7 @@ begin
 		when load_latch0_st => 
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
+			rdout_valid_o <= '0';
 			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
@@ -333,7 +367,19 @@ begin
 			ring_osc_en_o <= '0'; 
 			adc_clear_int <= '0'; 
 
-			conv_counter_int <= (others=>'0');
+			if conv_counter_int = 2 then
+				toggle_latch_decode_en <= '0';
+				conv_counter_int <= (others=>'0');
+				psec4a_conversion_state <= next_load_latch_st;
+			elsif conv_counter_int = 1 then
+				toggle_latch_decode_en <= '1'; --//enable latch decoder
+				conv_counter_int <= conv_counter_int + 1;		
+				psec4a_conversion_state <= load_latch0_st;	
+			elsif conv_counter_int = 0 then
+				toggle_latch_decode_en <= '0';
+				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= load_latch0_st;	
+			end if;	
 			
 			--//modify latch-specific signals:
 			digz_latch_sel <= "00";	
@@ -341,12 +387,12 @@ begin
 			toggle_latch_decode_en <= '1';
 			latch_full(0) <= '1';
 			
-			psec4a_conversion_state <= next_load_latch_st;
 			psec4a_next_load_latch_state <= load_latch1_st;
 
 		when load_latch1_st => 
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
+			rdout_valid_o <= '0';
 			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
@@ -356,7 +402,19 @@ begin
 			ring_osc_en_o <= '0'; 
 			adc_clear_int <= '0'; 
 
-			conv_counter_int <= (others=>'0');
+			if conv_counter_int = 2 then
+				toggle_latch_decode_en <= '0';
+				conv_counter_int <= (others=>'0');
+				psec4a_conversion_state <= next_load_latch_st;
+			elsif conv_counter_int = 1 then
+				toggle_latch_decode_en <= '1'; --//enable latch decoder
+				conv_counter_int <= conv_counter_int + 1;		
+				psec4a_conversion_state <= load_latch1_st;	
+			elsif conv_counter_int = 0 then
+				toggle_latch_decode_en <= '0';
+				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= load_latch1_st;	
+			end if;	
 			
 			--//modify latch-specific signals:
 			digz_latch_sel <= "01";	
@@ -365,12 +423,12 @@ begin
 			latch_full(0) <= '0';
 			latch_full(1) <= '1';
 
-			psec4a_conversion_state <= next_load_latch_st;
 			psec4a_next_load_latch_state <= load_latch2_st;	
 	
 		when load_latch2_st => 
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
+			rdout_valid_o <= '0';
 			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
@@ -380,21 +438,32 @@ begin
 			ring_osc_en_o <= '0'; 
 			adc_clear_int <= '0'; 
 
-			conv_counter_int <= (others=>'0');
+			if conv_counter_int = 2 then
+				toggle_latch_decode_en <= '0';
+				conv_counter_int <= (others=>'0');
+				psec4a_conversion_state <= next_load_latch_st;
+			elsif conv_counter_int = 1 then
+				toggle_latch_decode_en <= '1'; --//enable latch decoder
+				conv_counter_int <= conv_counter_int + 1;		
+				psec4a_conversion_state <= load_latch2_st;	
+			elsif conv_counter_int = 0 then
+				toggle_latch_decode_en <= '0';
+				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= load_latch2_st;	
+			end if;	
 			
 			--//modify latch-specific signals:
 			digz_latch_sel <= "10";	
 			digz_latch_transp <= '1';
-			toggle_latch_decode_en <= '1';
 			latch_full(1) <= '0';
 			latch_full(2) <= '1';
 
-			psec4a_conversion_state <= next_load_latch_st;
 			psec4a_next_load_latch_state <= load_latch3_st;	
 			
 		when load_latch3_st => 
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
+			rdout_valid_o <= '0';
 			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
@@ -405,26 +474,22 @@ begin
 			adc_clear_int <= '0'; 
 		
 			if conv_counter_int = 2 then
-				digz_latch_sel <= "11";	
-				digz_latch_transp <= '0';
 				toggle_latch_decode_en <= '0';
 				conv_counter_int <= (others=>'0');
 				psec4a_conversion_state <= start_st;
 			elsif conv_counter_int = 1 then
-				digz_latch_sel <= "11";	
-				digz_latch_transp <= '0';
-				toggle_latch_decode_en <= '0'; 
+				toggle_latch_decode_en <= '1'; --//enable latch decoder
 				conv_counter_int <= conv_counter_int + 1;		
 				psec4a_conversion_state <= load_latch3_st;	
 			elsif conv_counter_int = 0 then
-				--//modify latch-specific signals:
-				digz_latch_sel <= "11";	
-				digz_latch_transp <= '1';
-				toggle_latch_decode_en <= '1';
+				toggle_latch_decode_en <= '0';
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= load_latch3_st;	
 			end if;
 			
+			--//modify latch-specific signals:
+			digz_latch_transp <= '1';
+			digz_latch_sel <= "11";	
 			latch_full(2) <= '0';
 			latch_full(3) <= '1';
 			
@@ -433,6 +498,7 @@ begin
 		when next_load_latch_st =>
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			--//readout-specific signals:
+			rdout_valid_o <= '0';
 			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
@@ -471,6 +537,7 @@ begin
 			adc_clear_int <= '0'; 
 			
 			--//readout-specific signals:
+			rdout_valid_o <= '0';
 			rdout_clear_int <= '0'; 
 			rdout_clk_en_int <= '0';
 			rdout_token_int <= '0';
@@ -510,48 +577,87 @@ begin
 			ramp_o <= '0';
 			
 			--//latch signals
-			toggle_latch_decode_en <= '0';
 			digz_latch_transp <= '0';
 			digz_latch_sel <= digz_latch_sel;
 			latch_full <= latch_full;
 			
 			--//done w/ readout of channel
-			if conv_counter_int = rdout_clk_count_int + 3 then
+			if conv_counter_int = rdout_clk_count_int + 6 then
+				toggle_latch_decode_en <= '0';
 				rdout_clear_int <= '0';
 				rdout_token_int <= '0';
 				rdout_clk_en_int <= '0';
+				rdout_valid_o <= '0';
 				conv_counter_int <= (others=>'0');
 				psec4a_conversion_state <= readout_channel_update_st;
-			
-			--//third clock cycle, toggle read token
-			elsif conv_counter_int = 2 then
+
+			--//sixth clock cycle, de-activate latch decoder for token
+			elsif conv_counter_int = 5 then
+				toggle_latch_decode_en <= '0';
 				rdout_clear_int <= '0';
 				rdout_token_int <= '1';
 				rdout_clk_en_int <= '1';
+				rdout_valid_o <= '0';
+				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= readout_st;	
+								
+			--//fifth clock cycle, toggle token
+			elsif conv_counter_int = 4 then
+				toggle_latch_decode_en <= '1';
+				rdout_clear_int <= '0';
+				rdout_token_int <= '1';
+				rdout_clk_en_int <= '1';
+				rdout_valid_o <= '0';
+				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= readout_st;	
+				
+			--//fourth clock cycle, enable clock, set token
+			elsif conv_counter_int = 3 then
+				toggle_latch_decode_en <= '0';
+				rdout_clear_int <= '0';
+				rdout_token_int <= '1';
+				rdout_clk_en_int <= '1';
+				rdout_valid_o <= '0';
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= readout_st;	
 			
-			--//second clock cycle, release clear
-			elsif conv_counter_int = 1 then
-				rdout_clear_int <= '0';
-				rdout_token_int <= '0';
-				rdout_clk_en_int <= '1';
-				conv_counter_int <= conv_counter_int + 1;
-				psec4a_conversion_state <= readout_st;	
-				
-			--//first clock cycle, toggle readout clear, enable clock
-			elsif conv_counter_int = 0 then
+			--//third clock cycle, release readout clear
+			elsif conv_counter_int = 2 then
+				toggle_latch_decode_en <= '0';
 				rdout_clear_int <= '1';
 				rdout_token_int <= '0';
-				rdout_clk_en_int <= '1';
+				rdout_clk_en_int <= '0';
+				rdout_valid_o <= '0';
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= readout_st;	
 				
-			--//keep readout clock enabled
+			--//second clock cycle, toggle readout clear
+			elsif conv_counter_int = 1 then
+				toggle_latch_decode_en <= '1';
+				rdout_clear_int <= '1';
+				rdout_token_int <= '0';
+				rdout_clk_en_int <= '0';
+				rdout_valid_o <= '0';
+				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= readout_st;	
+				
+			--//first clock cycle, set readout clear
+			elsif conv_counter_int = 0 then
+				toggle_latch_decode_en <= '0';
+				rdout_clear_int <= '1';
+				rdout_token_int <= '0';
+				rdout_clk_en_int <= '0';
+				rdout_valid_o <= '0';
+				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= readout_st;	
+				
+			--//keep readout clock enabled, latch decoder disabled, data valid
 			else
+				toggle_latch_decode_en <= '0';
 				rdout_clear_int <= '0';
 				rdout_token_int <= '0';
 				rdout_clk_en_int <= '1';
+				rdout_valid_o <= '1';
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= readout_st;
 			end if;
@@ -565,6 +671,7 @@ begin
 			ramp_o <= '0';
 			
 			--//readout-specific signals: keep clear and token low, in order for latch_transparent to toggle decoder
+			rdout_valid_o <= '0';
 			rdout_clear_int <= '0'; 
 			rdout_clk_en_int <= '0';
 			rdout_token_int <= '0';
@@ -572,27 +679,24 @@ begin
 			--//latch signals
 			--//toggle the 4th latch --> copy values in the third latch to the fourth latch
 			digz_latch_sel <= "11";	
+			digz_latch_transp <= '1';
+			latch_full(2) <= '0';
+			latch_full(3) <= '1';
 			
 			if conv_counter_int = 2 then
 				conv_counter_int <= (others=>'0');
-				digz_latch_transp <= '0';
 				toggle_latch_decode_en<= '0';
 				psec4a_conversion_state <= readout_st; --//goto readout
 			elsif conv_counter_int = 1 then
 				conv_counter_int <= conv_counter_int + 1;
-				digz_latch_transp <= '0';
-				toggle_latch_decode_en <= '0'; --//de-toggle latch transp to de-activate the latch decoder
+				toggle_latch_decode_en <= '1'; --//toggle latch transp to activate the latch decoder
 				psec4a_conversion_state <= empty_latch2_st;
 			else
 				conv_counter_int <= conv_counter_int + 1;
-				digz_latch_transp <= '1';
-				toggle_latch_decode_en <= '1';
+				toggle_latch_decode_en <= '0';
 				psec4a_conversion_state <= empty_latch2_st;
 			end if;
-			
-			latch_full(2) <= '0';
-			latch_full(3) <= '1';
-			
+			----
 			if latch_full(1) = '1' then
 				psec4a_next_empty_latch_state <= empty_latch1_st;
 			elsif latch_full(0) = '1' then
@@ -600,7 +704,6 @@ begin
 			else
 				psec4a_next_empty_latch_state <= empty_latch2_st;
 			end if;
-
 			
 		when empty_latch1_st => 
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
@@ -612,6 +715,7 @@ begin
 			ramp_o <= '0';
 			
 			--//readout-specific signals: keep clear and token low, in order for latch_transparent to toggle decoder
+			rdout_valid_o <= '0';
 			rdout_clear_int <= '0'; 
 			rdout_clk_en_int <= '0';
 			rdout_token_int <= '0';
@@ -619,27 +723,24 @@ begin
 			--//latch signals
 			--//toggle the 3rd latch --> copy values in the second latch to the third latch
 			digz_latch_sel <= "10";
+			digz_latch_transp <= '1';
+			latch_full(1) <= '0';
+			latch_full(2) <= '1';
 			
 			if conv_counter_int = 2 then
 				conv_counter_int <= (others=>'0');	
-				digz_latch_transp <= '0';
 				toggle_latch_decode_en <= '0';
 				psec4a_conversion_state <= empty_latch2_st; --//goto next latch emtpy state
 			elsif conv_counter_int = 1 then
 				conv_counter_int <= conv_counter_int + 1;
-				digz_latch_transp <= '0';
-				toggle_latch_decode_en <= '0'; --//de-toggle latch transp to de-activate the latch decoder
+				toggle_latch_decode_en <= '1'; --//toggle latch transp to activate the latch decoder
 				psec4a_conversion_state <= empty_latch1_st;
 			else
 				conv_counter_int <= conv_counter_int + 1;
-				digz_latch_transp <= '1';
-				toggle_latch_decode_en <= '1';
+				toggle_latch_decode_en <= '0';
 				psec4a_conversion_state <= empty_latch1_st;
 			end if;
 			
-			latch_full(1) <= '0';
-			latch_full(2) <= '1';
-						
 		when empty_latch0_st => 
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			conv_counter_int <= (others=>'0');
@@ -650,35 +751,32 @@ begin
 			ramp_o <= '0';
 			
 			--//readout-specific signals: keep clear and token low, in order for latch_transparent to toggle decoder
+			rdout_valid_o <= '0';
 			rdout_clear_int <= '0'; 
 			rdout_clk_en_int <= '0';
 			rdout_token_int <= '0';
 			
 			--//latch signals
 			--//toggle the 2nd latch --> copy values in the first latch to the second latch
-			digz_latch_sel <= "01";	
-
+			digz_latch_sel <= "01";
+			digz_latch_transp <= '1';		
+			latch_full(0) <= '0';
+			latch_full(1) <= '1';
+			
 			if conv_counter_int = 2 then
 				conv_counter_int <= (others=>'0');
-				digz_latch_transp <= '0';
 				toggle_latch_decode_en <= '0';
 				psec4a_conversion_state <= empty_latch1_st; --//goto next latch emtpy state
 			elsif conv_counter_int = 1 then
 				conv_counter_int <= conv_counter_int + 1;
-				digz_latch_transp <= '0';
-				toggle_latch_decode_en <= '0'; --//de-toggle latch transp to de-activate the latch decoder
+				toggle_latch_decode_en <= '1'; --//toggle latch transp to activate the latch decoder
 				psec4a_conversion_state <= empty_latch0_st;
 			else
 				conv_counter_int <= conv_counter_int + 1;
-				digz_latch_transp <= '1';
-				toggle_latch_decode_en <= '1';
+				toggle_latch_decode_en <= '0';
 				psec4a_conversion_state <= empty_latch0_st;
 			end if;
 			
-			latch_full(0) <= '0';
-			latch_full(1) <= '1';
-			
-		
 		---------------------------------
 		-- DONE w/ event conversion and readout
 		---------------------------------
@@ -700,6 +798,7 @@ begin
 			--//counter for various use
 			conv_counter_int <= (others=>'0');
 			--//readout-specific signals
+			rdout_valid_o <= '0';
 			rdout_clear_int <= '0';
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
@@ -724,6 +823,7 @@ end process;
 -- 7  read token in
 --EN  bit 3 ['0'=all decoded outputs at 0; '1'=selected output active]
 ------------------------------------
+--// whoops, wired in reverse order on schematic:
 latch_sel_o(3) <= latch_sel_int(0);
 latch_sel_o(2) <= latch_sel_int(1);
 latch_sel_o(1) <= latch_sel_int(2);
@@ -735,26 +835,30 @@ begin
 	--apply reset on serial interfae on rst_i only
 	if rst_i = '1' then
 		latch_sel_int <= "1110";
-	
-	elsif digz_latch_transp = '1' then
-		case digz_latch_sel is
-			when "00" => latch_sel_int <= "1000";
-			when "01" => latch_sel_int <= "1001";
-			when "10" => latch_sel_int <= "1010";
-			when "11" => latch_sel_int <= "1011";
-		end case;
-	
-	elsif adc_clear_int = '1' then
-		latch_sel_int <= "1100";
-	
-	elsif rdout_clear_int = '1' then
-		latch_sel_int <= "1101";		
-	
-	elsif rdout_token_int= '1' then
-		latch_sel_int <= "1111";	
-	
 	else
-		latch_sel_int <= "0000";
+		
+		latch_sel_int(3) <= toggle_latch_decode_en; --//psec4a 3-bit latch decoder enable:
+	
+		if digz_latch_transp = '1' then
+			case digz_latch_sel is
+				when "00" => latch_sel_int(2 downto 0) <= "000";
+				when "01" => latch_sel_int(2 downto 0) <= "001";
+				when "10" => latch_sel_int(2 downto 0) <= "010";
+				when "11" => latch_sel_int(2 downto 0) <= "011";
+			end case;
+	
+		elsif adc_clear_int = '1' then
+			latch_sel_int(2 downto 0) <= "100";
+	
+		elsif rdout_clear_int = '1' then
+			latch_sel_int(2 downto 0) <= "101";		
+	
+		elsif rdout_token_int= '1' then
+			latch_sel_int(2 downto 0) <= "111";	
+	
+		--else
+		--	latch_sel_int(2 downto 0) <= "000";
+		end if;
 	end if;
 end process;
 -----

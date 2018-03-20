@@ -23,6 +23,7 @@ port(
 	registers_i		:	in		register_array_type;
 	psec4a_dat_i	:	in		std_logic_vector(psec4a_num_adc_bits-1 downto 0); --//psec4a data bus
 	psec4a_ch_sel_i:	in		std_logic_vector(2 downto 0);
+	data_valid_i	:	in		std_logic;
 	
 	chk_used_words_o : out  std_logic_vector(15 downto 0);
 	fifo_rd_data_o	:	out	std_logic_vector(15 downto 0));
@@ -80,7 +81,7 @@ RX_DATA_FIFO : for i in 0 to psec4a_num_channels-1 generate
 		data		=> psec4a_dat_i,
 		rdclk		=> registers_i(122)(0),
 		rdreq		=> fifo_rd_en(i),
-		wrclk		=> wrclk_i,
+		wrclk		=> wrclk_i and data_valid_i,
 		wrreq		=> fifo_wr_en(i),
 		q			=> fifo_out_data(i),
 		rdempty	=> open,	

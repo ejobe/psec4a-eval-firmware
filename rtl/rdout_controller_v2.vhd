@@ -39,7 +39,7 @@ end rdout_controller_v2;
 
 architecture rtl of rdout_controller_v2 is
 
-type readout_state_type is (idle_st, tx_st, wait_for_ack_st);
+type readout_state_type is (idle_st, single_tx_st, wait_for_ack_st);
 signal readout_state : readout_state_type;
 
 signal readout_value 	: std_logic_vector(d_width-1 downto 0);
@@ -86,12 +86,12 @@ begin
 				--///////////////////////////////////////////////
 				--//if readout register is written, and spi interface is done with last transfer we initiate a transfer:
 				if reg_adr_i = x"47" then
-					readout_state <= tx_st;
+					readout_state <= single_tx_st;
 				else 
 					readout_state <= idle_st;
 				end if;
 			
-			when tx_st =>
+			when single_tx_st =>
 				i := 0;
 				tx_rdy_o <= '1';  --//pulse tx ready for a single clk cycle
 				readout_value <= rdout_reg_i(d_width-1 downto 0); --//latch the readout value

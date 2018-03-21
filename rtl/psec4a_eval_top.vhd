@@ -77,6 +77,8 @@ signal psec4a_chan_sel 	:  std_logic_vector(2 downto 0);
 signal data_fifo_rd_empty : std_logic;
 signal data_fifo_clk	: std_logic;
 signal data_fifo_data : std_logic_vector(15 downto 0);
+signal data_ram_rd_addr : std_logic_vector(10 downto 0);
+signal data_ram_wr_addr : std_logic_vector(10 downto 0);
 
 signal register_array 	:	register_array_type;
 signal reg_addr_sig		:  std_logic_vector(define_address_size-1 downto 0);
@@ -178,22 +180,33 @@ port map(
 	latch_sel_o		=> psec4a_latchsel_o, 
 	rdout_clk_o		=> psec4a_read_clk,
 	rdout_valid_o  => psec4a_readout_valid,
+	rdout_ram_wr_addr_o => data_ram_wr_addr,
 	chan_sel_o		=> psec4a_chan_sel);
 
-xPSEC4A_DATA : entity work.psec4a_data
-port map(
-	rst_i				=> global_reset_sig,
+--xPSEC4A_DATA : entity work.psec4a_data
+--port map(
+--	rst_i				=> global_reset_sig,
+--	wrclk_i			=> psec4a_read_clk,
+--	registers_i		=> register_array,
+--	psec4a_dat_i	=> psec4a_d_i,
+--	psec4a_ch_sel_i=> psec4a_chan_sel,
+--	data_valid_i	=> psec4a_readout_valid,
+--	fifo_clk_i		=> data_fifo_clk,
+--	fifo_used_words_o => readout_register_array(5),
+--	fifo_rd_empty_o => data_fifo_rd_empty,
+--	fifo_rd_data_o	=>  data_fifo_data);
+xPSEC4A_DATA : entity work.psec4a_data_ram
+port map(	
+	rst_i				=> global_reset_sig,	
 	wrclk_i			=> psec4a_read_clk,
 	registers_i		=> register_array,
 	psec4a_dat_i	=> psec4a_d_i,
 	psec4a_ch_sel_i=> psec4a_chan_sel,
 	data_valid_i	=> psec4a_readout_valid,
-	fifo_clk_i		=> data_fifo_clk,
-	fifo_used_words_o => readout_register_array(5),
-	fifo_rd_empty_o => data_fifo_rd_empty,
-	fifo_rd_data_o	=>  data_fifo_data);
-	
-	readout_register_array(4) <= data_fifo_data;
+	ram_clk_i		=> usb_slwr_sig,
+	ram_rd_addr_i	=> data_ram_rd_addr,
+	ram_wr_addr_i	=> data_ram_wr_addr,
+	ram_rd_data_o	=> data_fifo_data);
 
 xUSB : entity work.usb_32bit
 port map(
@@ -230,7 +243,22 @@ port map(
 		readout_register_i => readout_register_array,
 		address_o		=> reg_addr_sig);
 		
-xRDOUT_CNTRL : entity work.rdout_controller_v2 
+--xRDOUT_CNTRL : entity work.rdout_controller_v2 
+--	port map(
+--		rst_i					=> global_reset_sig,	
+--		clk_i					=> clk_usb_48Mhz, --clk_25MHz_sig,					
+--		rdout_reg_i			=> readout_reg_sig,	
+--		reg_adr_i			=> reg_addr_sig,	
+--		registers_i			=> register_array,	   
+--		usb_slwr_i			=> usb_slwr_sig,
+--		tx_rdy_o				=> usb_start_wr_sig,	
+--		tx_ack_i				=> usb_done_sig,
+--		data_fifo_i			=> data_fifo_data,
+--		data_fifo_empty_i	=> data_fifo_rd_empty,
+--		data_fifo_clk_o	=> data_fifo_clk,
+--		rdout_length_o		=> usb_readout_length,
+--		rdout_fpga_data_o	=> usb_dataout_sig);	
+xRDOUT_CNTRL : entity work.rdout_controller_v3 
 	port map(
 		rst_i					=> global_reset_sig,	
 		clk_i					=> clk_usb_48Mhz, --clk_25MHz_sig,					
@@ -240,9 +268,8 @@ xRDOUT_CNTRL : entity work.rdout_controller_v2
 		usb_slwr_i			=> usb_slwr_sig,
 		tx_rdy_o				=> usb_start_wr_sig,	
 		tx_ack_i				=> usb_done_sig,
+		data_rd_addr_o		=> data_ram_rd_addr,
 		data_fifo_i			=> data_fifo_data,
-		data_fifo_empty_i	=> data_fifo_rd_empty,
-		data_fifo_clk_o	=> data_fifo_clk,
 		rdout_length_o		=> usb_readout_length,
 		rdout_fpga_data_o	=> usb_dataout_sig);	
 		

@@ -82,9 +82,9 @@ begin
 		--// DAC values
 		registers_io(86) <= x"000100";  	--//ROvcp
 		registers_io(87) <= x"000000";  	--//BiasTrigN
-		registers_io(88) <= x"000220";  	--//BiasXfer
-		registers_io(89) <= x"000220";  	--//BiasRampBuf
-		registers_io(90) <= x"000220";	--//BiasComp
+		registers_io(88) <= x"000180";  	--//BiasXfer
+		registers_io(89) <= x"0001AB";  	--//BiasRampBuf
+		registers_io(90) <= x"000200";	--//BiasComp
 		registers_io(91) <= x"000100";   --//BiasDllLast  -- p bias
 		registers_io(92) <= x"000100"; 	--//BiasDllFirst -- p bias
 		registers_io(93) <= x"000200"; --x"0001A0";	--//BiasDllp

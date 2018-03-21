@@ -18,7 +18,7 @@ use ieee.numeric_std.all;
 
 use work.defs.all;
 
-entity rdout_controller_v2 is	
+entity rdout_controller_v3 is	
 	generic(
 		d_width : INTEGER := 16);
 	port(
@@ -33,49 +33,43 @@ entity rdout_controller_v2 is
 		tx_rdy_o					:	inout	std_logic;  --// tx ready flag
 		tx_ack_i					:	in		std_logic;  --//tx ack from spi_slave (newer spi_slave module ONLY)
 	
+		data_rd_addr_o			:	buffer	std_logic_vector(10 downto 0);
 		data_fifo_i				:	in		std_logic_vector(15 downto 0);
-		data_fifo_empty_i		:	in		std_logic;
-		data_fifo_clk_o		:	out	std_logic;
 		rdout_length_o			:	out	std_logic_vector(15 downto 0);
 		rdout_fpga_data_o		:	out	std_logic_vector(d_width-1 downto 0)); --//data to send off-fpga
 		
-end rdout_controller_v2;
+end rdout_controller_v3;
 
-architecture rtl of rdout_controller_v2 is
+architecture rtl of rdout_controller_v3 is
 
 type readout_state_type is (idle_st, single_tx_st, multi_tx_st,  wait_for_ack_st);
 signal readout_state : readout_state_type;
 
 signal readout_value 	: std_logic_vector(d_width-1 downto 0);
-signal usb_rdout_counter : std_logic_vector(23 downto 0);
+signal usb_rdout_counter : std_logic_vector(15 downto 0);
 signal data_readout : std_logic;
-signal fifo_empty_int : std_logic;
-signal fifo_clk_en_int : std_logic;
 
 begin
 
 --//this is not optimal firmware here, but it should work
-proc_usb_read : process(rst_i, usb_slwr_i, tx_rdy_o, tx_ack_i, data_readout, data_fifo_empty_i)
+proc_usb_read : process(rst_i, usb_slwr_i, tx_rdy_o, tx_ack_i, data_readout)
 begin
 	if rst_i = '1' or tx_ack_i = '1' then
 		rdout_fpga_data_o <= (others=>'0');
 		usb_rdout_counter <= (others=>'0');
-		fifo_empty_int <= '0';
-		fifo_clk_en_int <= '0';
+		data_rd_addr_o <= (others=>'0');
 	elsif falling_edge(usb_slwr_i) then
 		-- data frame readout
 		if data_readout = '1' then
-			fifo_clk_en_int <= '1';
 			if usb_rdout_counter = 0 then
 				rdout_fpga_data_o <= x"DEAD";
-			elsif fifo_empty_int = '1' and data_fifo_empty_i = '1' then
-				rdout_fpga_data_o <= x"BEEF";
 			else
+				data_rd_addr_o <= data_rd_addr_o + 1;
 				rdout_fpga_data_o <= data_fifo_i;
 			end if;
 		-- single register readout
 		else
-			fifo_clk_en_int <= '0';
+			data_rd_addr_o <= (others=>'0');
 			if usb_rdout_counter = 0 then
 				rdout_fpga_data_o <= x"DEAD";
 			elsif usb_rdout_counter = 1 then
@@ -84,19 +78,10 @@ begin
 				rdout_fpga_data_o <= x"BEEF";
 			end if;
 		end if;
-		fifo_empty_int <= data_fifo_empty_i;
 		usb_rdout_counter <= usb_rdout_counter + 1;
 	end if;
 end process;
 ---
-data_fifo_clk_o <= usb_slwr_i;
---proc_fifo_clk : process(fifo_clk_en_int)
---begin
---case fifo_clk_en_int is 
---when '0' => data_fifo_clk_o <= '0';
---when '1' => data_fifo_clk_o <= (not usb_slwr_i);
---end case;
---end process;
 --///////////////////////////////
 --//readout process, this is on the register clock	
 proc_read : process(rst_i, clk_i, reg_adr_i)

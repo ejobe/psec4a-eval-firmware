@@ -32,6 +32,7 @@ port(
 	latch_sel_o		:	out	std_logic_vector(3 downto 0); --//psec4a 'latch' decoder
 	rdout_clk_o		:  out	std_logic; --//psec4a readout clock
 	rdout_valid_o	:	out	std_logic;
+	rdout_ram_wr_addr_o	:	buffer std_logic_vector(10 downto 0);
 	chan_sel_o		:	buffer	std_logic_vector(2 downto 0)); --//psec4a readout channel select
 	
 	--psec4a_trig_i	:	in		std_logic_vector(5 downto 0)); --//(whoops, only 6/8 trig lines routed on the board!)
@@ -192,6 +193,8 @@ end generate;
 
 proc_digz_rdout : process(rst_i, clk_i, sample_hold_int)
 variable dig_count : integer range 0 to 8 := 0;
+variable rdout_count : integer range 0 to 8 := 0;
+
 begin
 	if rst_i = '1' then
 		
@@ -203,6 +206,7 @@ begin
 		latch_full <= "0000";
 		--//adc-specific signals
 		dig_count := 0; --//number of ADC cycles (max 8)
+		rdout_count := 0;  --//number of readout cycles (max 8)
 		comp_sel_o <= "000";
 		ramp_o <= '0'; 
 		ring_osc_en_o <= '0';
@@ -215,6 +219,7 @@ begin
 		rdout_clk_en_int <= '0'; --//gate for readout clock sent to psec4a
 		chan_sel_o <= "000";      --//psec4a channel select decoder
 		rdout_token_int <= '0';    --//readout start signal - needs to be high for a single clock cycle to initiate
+		rdout_ram_wr_addr_o <= (others=>'0');
 		
 		psec4a_next_load_latch_state <= load_latch0_st;
 		psec4a_next_empty_latch_state <= empty_latch2_st;
@@ -233,6 +238,7 @@ begin
 			latch_full <= "0000";	
 			--//adc-specific signals
 			dig_count := 0; --//number of ADC cycles (max 8)
+			rdout_count := 0; 
 			comp_sel_o <= "111";
 			ramp_o <= '0'; 
 			ring_osc_en_o <= '0';
@@ -245,6 +251,7 @@ begin
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
 			rdout_token_int <= '0';
+			rdout_ram_wr_addr_o <= (others=>'0');
 			
 			psec4a_next_load_latch_state <= load_latch0_st;
 			psec4a_next_empty_latch_state <= empty_latch2_st; --//empties in reverse order as load
@@ -263,6 +270,7 @@ begin
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
 			rdout_token_int <= '0';
+			
 			--//adc-latch signals: used for both adc and readout
 			digz_latch_sel <= "00";
 			digz_latch_transp <= '0';
@@ -539,7 +547,7 @@ begin
 			rdout_clear_int <= '0'; 
 			rdout_clk_en_int <= '0';
 			rdout_token_int <= '0';
-			
+						
 			conv_counter_int <= (others=>'0');
 			
 			--//latch signals
@@ -548,6 +556,7 @@ begin
 			latch_full(3) <= '0'; --//last latch now 'empty', since readout just performed
 			
 			if chan_sel_o = "111" then
+				rdout_count := rdout_count + 1; --//increment the readout counter 
 				chan_sel_o <= "000";
 				if latch_full(0) = '1' or latch_full(1) = '1' or latch_full(2) = '1' then
 					psec4a_conversion_state <= psec4a_next_empty_latch_state;
@@ -588,7 +597,7 @@ begin
 				rdout_valid_o <= '0';
 				conv_counter_int <= (others=>'0');
 				psec4a_conversion_state <= readout_channel_update_st;
-
+			
 			--//sixth clock cycle, de-activate latch decoder for token
 			elsif conv_counter_int = 5 then
 				toggle_latch_decode_en <= '0';
@@ -646,6 +655,7 @@ begin
 				rdout_token_int <= '0';
 				rdout_clk_en_int <= '0';
 				rdout_valid_o <= '0';
+				rdout_ram_wr_addr_o <= std_logic_vector(to_unsigned(rdout_count * 132, rdout_ram_wr_addr_o'length));  --//update the initial write address
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= readout_st;	
 				
@@ -657,6 +667,7 @@ begin
 				rdout_clk_en_int <= '1';
 				rdout_valid_o <= '1';
 				conv_counter_int <= conv_counter_int + 1;
+				rdout_ram_wr_addr_o <= rdout_ram_wr_addr_o + 1; --//increment the write address
 				psec4a_conversion_state <= readout_st;
 			end if;
 			
@@ -789,6 +800,7 @@ begin
 			latch_full <= "0000";	
 			--//adc-specific signals
 			dig_count := 0; --//number of ADC cycles (max 8)
+			rdout_count := 0;
 			comp_sel_o <= "111";
 			ramp_o <= '0'; 
 			ring_osc_en_o <= '0';
@@ -801,6 +813,7 @@ begin
 			rdout_clk_en_int <= '0';
 			chan_sel_o <= "000";
 			rdout_token_int <= '0';
+			rdout_ram_wr_addr_o <= (others=>'0');
 			
 			psec4a_conversion_state <= idle_st;
 			

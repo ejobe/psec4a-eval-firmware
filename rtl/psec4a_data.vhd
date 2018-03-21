@@ -54,9 +54,9 @@ case psec4a_ch_sel_i is
 	when "010"=> fifo_wr_en <= x"04";
 	when "011"=> fifo_wr_en <= x"08";
 	when "100"=> fifo_wr_en <= x"10";
-	when "101"=> fifo_wr_en <= x"12";
-	when "110"=> fifo_wr_en <= x"14";
-	when "111"=> fifo_wr_en <= x"18";
+	when "101"=> fifo_wr_en <= x"20";
+	when "110"=> fifo_wr_en <= x"40";
+	when "111"=> fifo_wr_en <= x"80";
 end case;
 end process;
 --
@@ -74,11 +74,11 @@ case registers_i(72)(3 downto 0) is
 					 fifo_rd_empty_o <= empty(3);
 	when x"5" => fifo_rd_en <= x"10"; fifo_rd_data_o <= "00000" & fifo_out_data(4); fifo_used_words_o <= "00000" & used_words(4);
 					 fifo_rd_empty_o <= empty(4);
-	when x"6" => fifo_rd_en <= x"12"; fifo_rd_data_o <= "00000" & fifo_out_data(5); fifo_used_words_o <= "00000" & used_words(5);
+	when x"6" => fifo_rd_en <= x"20"; fifo_rd_data_o <= "00000" & fifo_out_data(5); fifo_used_words_o <= "00000" & used_words(5);
 					 fifo_rd_empty_o <= empty(5);
-	when x"7" => fifo_rd_en <= x"14"; fifo_rd_data_o <= "00000" & fifo_out_data(6); fifo_used_words_o <= "00000" & used_words(6);
+	when x"7" => fifo_rd_en <= x"40"; fifo_rd_data_o <= "00000" & fifo_out_data(6); fifo_used_words_o <= "00000" & used_words(6);
 					 fifo_rd_empty_o <= empty(6);
-	when x"8" => fifo_rd_en <= x"18"; fifo_rd_data_o <= "00000" & fifo_out_data(7); fifo_used_words_o <= "00000" & used_words(7);
+	when x"8" => fifo_rd_en <= x"80"; fifo_rd_data_o <= "00000" & fifo_out_data(7); fifo_used_words_o <= "00000" & used_words(7);
 	             fifo_rd_empty_o <= empty(7);
 	when others=> fifo_rd_en <= x"00"; fifo_rd_data_o <= (others=>'0'); fifo_used_words_o<=(others=>'0'); fifo_rd_empty_o <= '0';
 end case; 
@@ -89,10 +89,10 @@ RX_DATA_FIFO : for i in 0 to psec4a_num_channels-1 generate
 	port map(	
 		aclr		=> rst_i or registers_i(121)(0),
 		data		=> psec4a_dat_i,
-		rdclk		=> registers_i(122)(0) or fifo_clk_i,
+		rdclk		=> fifo_clk_i, --registers_i(122)(0) or fifo_clk_i,
 		rdreq		=> fifo_rd_en(i),
-		wrclk		=> wrclk_i and data_valid_i,
-		wrreq		=> fifo_wr_en(i),
+		wrclk		=> wrclk_i,
+		wrreq		=> fifo_wr_en(i) and data_valid_i,
 		q			=> fifo_out_data(i),
 		rdempty	=> empty(i),	
 		rdusedw	=> used_words(i),

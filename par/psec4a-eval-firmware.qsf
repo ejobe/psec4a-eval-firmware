@@ -219,7 +219,9 @@ set_location_assignment PIN_195 -to USB_WAKEUP_n
 set_global_assignment -name SEARCH_PATH "c:\\users\\eric\\desktop\\psec4a-eval-firmware\\rtl\\verilog_lib"
 set_global_assignment -name SEARCH_PATH "c:\\users\\eric\\desktop\\psec4a-eval-firmware\\rtl"
 set_global_assignment -name SEARCH_PATH "c:\\users\\eric\\desktop\\psec4a-eval-firmware\\rtl\\usb"
-set_global_assignment -name USE_SIGNALTAP_FILE "../signal_tap/tap-psec4a-data.stp"
+set_global_assignment -name USE_SIGNALTAP_FILE "../signal_tap/tap-psec4a_readout2.stp"
+
+set_global_assignment -name VHDL_FILE ../rtl/ram.vhd
 set_global_assignment -name VHDL_FILE ../rtl/fifo.vhd
 set_global_assignment -name VHDL_FILE ../rtl/ibuf.vhd
 set_global_assignment -name VHDL_FILE ../rtl/pll2.vhd
@@ -252,5 +254,7 @@ set_global_assignment -name SDC_FILE timing.sdc
 set_global_assignment -name SIGNALTAP_FILE "../signal_tap/tap-psec4a-adc.stp"
 set_global_assignment -name VHDL_FILE ../rtl/psec4a_data.vhd
 set_global_assignment -name SIGNALTAP_FILE "../signal_tap/tap-psec4a-data.stp"
-
+set_global_assignment -name SIGNALTAP_FILE "../signal_tap/tap-psec4a_readout2.stp"
+set_global_assignment -name VHDL_FILE ../rtl/psec4a_data_ram.vhd
+set_global_assignment -name VHDL_FILE ../rtl/rdout_controller_v3.vhd
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

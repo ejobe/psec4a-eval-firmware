@@ -20,8 +20,6 @@ port(
 	psec4a_d_i				:	in		std_logic_vector(10 downto 0);
 	psec4a_xferadr_o		:	out	std_logic_vector(3 downto 0);
 	psec4a_latchsel_o		:	out	std_logic_vector(3 downto 0);
-	psec4a_dllspeed_o		:	inout	std_logic;  --//also controllable with serial interface
-	psec4a_reset_xfer_en_o: inout std_logic;  --//also controllable with serial interface
 	psec4a_ringosc_en_o	:	out	std_logic;
 	psec4a_ringosc_mon_i	:	in		std_logic;
 	psec4a_trigger_i		:	in		std_logic_vector(7 downto 0);
@@ -76,11 +74,15 @@ signal usb_start_wr_sig	:	std_logic;
 signal psec4a_read_clk 	:  std_logic;
 signal psec4a_readout_valid : std_logic;
 signal psec4a_chan_sel 	:  std_logic_vector(2 downto 0);
+signal data_fifo_rd_empty : std_logic;
+signal data_fifo_clk	: std_logic;
+signal data_fifo_data : std_logic_vector(15 downto 0);
 
 signal register_array 	:	register_array_type;
 signal reg_addr_sig		:  std_logic_vector(define_address_size-1 downto 0);
 signal readout_reg_sig  :  std_logic_vector(define_register_size-1 downto 0);
 signal usb_dataout_sig	:  std_logic_vector(15 downto 0);
+signal usb_readout_length : std_logic_vector(15 downto 0);
 
 signal refresh_clk_1Hz				: std_logic := '0';
 signal refresh_clk_counter_1Hz 	: std_logic_vector(19 downto 0);
@@ -92,7 +94,6 @@ signal REFRESH_CLK_MATCH_10HZ		: std_logic_vector(19 downto 0) := x"02710";
 signal readout_register_array : read_register_array_type;
 --//---------------------------------------------------------------------------
 begin
-
 
 xCLK_GEN_10Hz : entity work.Slow_Clocks
 generic map(clk_divide_by => 5000)
@@ -187,8 +188,12 @@ port map(
 	psec4a_dat_i	=> psec4a_d_i,
 	psec4a_ch_sel_i=> psec4a_chan_sel,
 	data_valid_i	=> psec4a_readout_valid,
-	chk_used_words_o => readout_register_array(5),
-	fifo_rd_data_o	=> readout_register_array(4));
+	fifo_clk_i		=> data_fifo_clk,
+	fifo_used_words_o => readout_register_array(5),
+	fifo_rd_empty_o => data_fifo_rd_empty,
+	fifo_rd_data_o	=>  data_fifo_data);
+	
+	readout_register_array(4) <= data_fifo_data;
 
 xUSB : entity work.usb_32bit
 port map(
@@ -200,7 +205,7 @@ port map(
    USB_FLAGB    		=> USB_CTL(1),		
    USB_FLAGC    		=> USB_CTL(2),		
 	USB_START_WR		=> usb_start_wr_sig,		
-	USB_NUM_WORDS		=> x"0002",
+	USB_NUM_WORDS		=> usb_readout_length,
    USB_DONE  			=> usb_done_sig,	   
    USB_PKTEND    		=> USB_PA(6),	
    USB_SLWR  			=> usb_slwr_sig,		
@@ -234,7 +239,11 @@ xRDOUT_CNTRL : entity work.rdout_controller_v2
 		registers_i			=> register_array,	   
 		usb_slwr_i			=> usb_slwr_sig,
 		tx_rdy_o				=> usb_start_wr_sig,	
-		tx_ack_i				=> usb_done_sig,	
+		tx_ack_i				=> usb_done_sig,
+		data_fifo_i			=> data_fifo_data,
+		data_fifo_empty_i	=> data_fifo_rd_empty,
+		data_fifo_clk_o	=> data_fifo_clk,
+		rdout_length_o		=> usb_readout_length,
 		rdout_fpga_data_o	=> usb_dataout_sig);	
 		
 xPSEC4A_SERIAL : entity work.psec4a_serial

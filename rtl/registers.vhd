@@ -66,6 +66,8 @@ begin
 			
 		
 		--//programmable static registers
+		registers_io(68) <= x"000002";
+		registers_io(69) <= x"000422";
 		registers_io(72) <= x"000000";  --//readout fifo select
 		
 		registers_io(78) <= x"000002";  --//how many clock cycles to hold stuff in reset before starting up the adc conversion

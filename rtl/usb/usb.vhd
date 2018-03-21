@@ -91,7 +91,8 @@ architecture Behavioral of usb_32bit is
 	signal	USB_DATA		: std_logic_vector(15 downto 0);
 	signal   instruction	: std_logic_vector(data_width-1 downto 0);
 	signal	instruct_rdy: std_logic;
-	signal 	USB_START_WR_int : std_logic;
+	signal 	usb_start_wr_int : std_logic;
+	signal 	USB_NUM_WORDS_int : std_logic_vector(15 downto 0);
 	
 	component iobuf
 	port(
@@ -133,31 +134,30 @@ USB_FIFOADR 		<= FIFOADR;
 
 xUSB_IO_BUFFER	: iobuf
 port map(
-	datain	=>	FPGA_DATA,		
-	oe			=> TOGGLE,	
-	dataio	=> USB_BUS,	
-	dataout	=> USB_DATA);
+	datain	=>	FPGA_DATA,	oe		=> TOGGLE,	
+	dataio	=> USB_BUS,	dataout	=> USB_DATA);
 		
 xUSB_INSTRUCT_FLAG : flag_sync
 port map(
-	clkA		=> USB_IFCLK,
-	clkB  	=> CORE_CLK,
-	in_clkA  => instruct_rdy,
-	out_clkB => USB_INSTRUCT_RDY);
+	clkA		=> USB_IFCLK, clkB  	=> CORE_CLK,
+	in_clkA  => instruct_rdy, out_clkB => USB_INSTRUCT_RDY);
 	
 xUSB_DONE_FLAG : flag_sync
 port map(
-	clkA		=> USB_IFCLK,
-	clkB  	=> CORE_CLK,
-	in_clkA  => DONE,
-	out_clkB => USB_DONE);
+	clkA		=> USB_IFCLK, clkB  	=> CORE_CLK,
+	in_clkA  => DONE, out_clkB => USB_DONE);
 	
 xUSB_START_SYNC : signal_sync
 port map(
-	clkA		=> CORE_CLK,
-	clkB  	=> USB_IFCLK,
-	SignalIn_clkA  => USB_START_WR,
-	SignalOut_clkB => USB_START_WR_int);
+	clkA=> CORE_CLK, clkB  	=> USB_IFCLK,
+	SignalIn_clkA  => USB_START_WR, SignalOut_clkB => usb_start_wr_int);
+
+USB_LENGTH_SYNC : for i in 0 to 15 generate
+xUSB_LENGTH_SYNC : signal_sync
+port map(
+	clkA=> CORE_CLK, clkB  	=> USB_IFCLK,
+	SignalIn_clkA  => USB_NUM_WORDS(i), SignalOut_clkB => USB_NUM_WORDS_int(i));
+end generate;
 	
 proc_sync_instruct : process(USB_RESET, USB_INSTRUCT_RDY, CORE_CLK)
 begin
@@ -259,7 +259,7 @@ proc_usb_write : process(USB_IFCLK, USB_RESET, STARTSNC, STARTRD)
 --------------------------------------------------------------------------------
 				when STATE3 =>									  	
 					--if column >= USB_NUM_WORDS then 
-					if (column = USB_NUM_WORDS) or STARTRD = '0' then
+					if (column = USB_NUM_WORDS_int) or STARTRD = '0' then
 						column 	<= (others=>'0');
 						LRAD	 	<= (others=>'0');
 						DONE 		<= '1';
@@ -345,12 +345,12 @@ proc_usb_write : process(USB_IFCLK, USB_RESET, STARTSNC, STARTRD)
 		end if;
 	end process;
 --------------------------------------------------------------------------------
-	process(USB_IFCLK, USB_RESET, USB_START_WR_int)
+	process(USB_IFCLK, USB_RESET, usb_start_wr_int)
 	begin
 		if USB_RESET ='1' then
 			STARTRD <= '0';	
 		elsif rising_edge(USB_IFCLK) then
-			if USB_START_WR_int = '1' then
+			if usb_start_wr_int = '1' then
 				STARTRD <= '1';
 			else 
 				STARTRD <= '0';

@@ -384,7 +384,6 @@ begin
 			--//modify latch-specific signals:
 			digz_latch_sel <= "00";	
 			digz_latch_transp <= '1';
-			toggle_latch_decode_en <= '1';
 			latch_full(0) <= '1';
 			
 			psec4a_next_load_latch_state <= load_latch1_st;
@@ -419,7 +418,6 @@ begin
 			--//modify latch-specific signals:
 			digz_latch_sel <= "01";	
 			digz_latch_transp <= '1';
-			toggle_latch_decode_en <= '1';
 			latch_full(0) <= '0';
 			latch_full(1) <= '1';
 

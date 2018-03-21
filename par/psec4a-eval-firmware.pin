@@ -175,12 +175,12 @@ VCCIO4                       : 104       : power  :                   : 3.0V    
 GND                          : 105       : gnd    :                   :         :           :                
 led_1                        : 106       : output : 3.0-V LVTTL       :         : 4         : Y              
 led_0                        : 107       : output : 3.0-V LVTTL       :         : 4         : Y              
-psec4a_dllspeed_o            : 108       : bidir  : 3.0-V LVTTL       :         : 4         : N              
+GND*                         : 108       :        :                   :         : 4         :                
 led_2                        : 109       : output : 3.0-V LVTTL       :         : 4         : Y              
 GND*                         : 110       :        :                   :         : 4         :                
 GND*                         : 111       :        :                   :         : 4         :                
 GND*                         : 112       :        :                   :         : 4         :                
-psec4a_reset_xfer_en_o       : 113       : bidir  : 3.0-V LVTTL       :         : 4         : N              
+GND*                         : 113       :        :                   :         : 4         :                
 GND*                         : 114       :        :                   :         : 4         :                
 VCCINT                       : 115       : power  :                   : 1.2V    :           :                
 GND                          : 116       : gnd    :                   :         :           :                

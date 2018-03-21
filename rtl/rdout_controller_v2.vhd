@@ -33,47 +33,72 @@ entity rdout_controller_v2 is
 		tx_rdy_o					:	inout	std_logic;  --// tx ready flag
 		tx_ack_i					:	in		std_logic;  --//tx ack from spi_slave (newer spi_slave module ONLY)
 	
-		rdout_fpga_data_o		:	out		std_logic_vector(d_width-1 downto 0)); --//data to send off-fpga
+		data_fifo_i				:	in		std_logic_vector(15 downto 0);
+		data_fifo_empty_i		:	in		std_logic;
+		data_fifo_clk_o		:	out	std_logic;
+		rdout_length_o			:	out	std_logic_vector(15 downto 0);
+		rdout_fpga_data_o		:	out	std_logic_vector(d_width-1 downto 0)); --//data to send off-fpga
 		
 end rdout_controller_v2;
 
 architecture rtl of rdout_controller_v2 is
 
-type readout_state_type is (idle_st, single_tx_st, wait_for_ack_st);
+type readout_state_type is (idle_st, single_tx_st, multi_tx_st,  wait_for_ack_st);
 signal readout_state : readout_state_type;
 
 signal readout_value 	: std_logic_vector(d_width-1 downto 0);
 signal usb_rdout_counter : std_logic_vector(23 downto 0);
+signal data_readout : std_logic;
 
 begin
 
 --//this is not optimal firmware here, but it should work
-proc_usb_read : process(rst_i, usb_slwr_i, tx_rdy_o, tx_ack_i)
+proc_usb_read : process(rst_i, usb_slwr_i, tx_rdy_o, tx_ack_i, data_readout, data_fifo_empty_i)
 begin
 	if rst_i = '1' or tx_ack_i = '1' then
 		rdout_fpga_data_o <= (others=>'0');
 		usb_rdout_counter <= (others=>'0');
 	elsif falling_edge(usb_slwr_i) then
-		if usb_rdout_counter = 0 then
-			rdout_fpga_data_o <= x"DEAD";
-		elsif usb_rdout_counter = 1 then
-			rdout_fpga_data_o <= readout_value;
+		-- data frame readout
+		if data_readout = '1' then
+			if usb_rdout_counter = 0 then
+				rdout_fpga_data_o <= x"DEAD";
+			elsif data_fifo_empty_i = '1' then
+				rdout_fpga_data_o <= x"BEEF";
+			else
+				rdout_fpga_data_o <= data_fifo_i;
+			end if;
+		-- single register readout
 		else
-			rdout_fpga_data_o <= x"BEEF";
+			if usb_rdout_counter = 0 then
+				rdout_fpga_data_o <= x"DEAD";
+			elsif usb_rdout_counter = 1 then
+				rdout_fpga_data_o <= readout_value;
+			else
+				rdout_fpga_data_o <= x"BEEF";
+			end if;
 		end if;
+			
 		usb_rdout_counter <= usb_rdout_counter + 1;
 	end if;
 end process;
-
+---
+proc_fifo_clk : process(data_readout)
+begin
+case data_readout is 
+when '0' => data_fifo_clk_o <= '0';
+when '1' => data_fifo_clk_o <= usb_slwr_i;
+end case;
+end process;
 --///////////////////////////////
 --//readout process, this is on the register clock	
 proc_read : process(rst_i, clk_i, reg_adr_i)
-variable i : integer range 0 to 10 := 0;
 begin
-	if rst_i = '1' or reg_adr_i = x"48" then 
+	if rst_i = '1' then 
 		tx_rdy_o <= '0'; 								--//tx flag to spi_slave
 		readout_value <= (others=>'0');
-		i := 0;
+		rdout_length_o <= registers_i(68)(15 downto 0);
+		data_readout <= '0';
 		readout_state <= idle_st;
 		
 	elsif rising_edge(clk_i) then
@@ -82,23 +107,32 @@ begin
 			--// wait for start-readout register to be written
 			when idle_st =>
 				tx_rdy_o <= '0';
-				i := 0;
+				data_readout <= '0';
+				readout_value <= (others=>'0');
 				--///////////////////////////////////////////////
 				--//if readout register is written, and spi interface is done with last transfer we initiate a transfer:
 				if reg_adr_i = x"47" then
+					rdout_length_o <= registers_i(68)(15 downto 0);
 					readout_state <= single_tx_st;
+				elsif reg_adr_i = x"46" then
+					rdout_length_o <= registers_i(69)(15 downto 0);
+					readout_state <= multi_tx_st;
 				else 
 					readout_state <= idle_st;
 				end if;
 			
 			when single_tx_st =>
-				i := 0;
 				tx_rdy_o <= '1';  --//pulse tx ready for a single clk cycle
+				data_readout <= '0';
 				readout_value <= rdout_reg_i(d_width-1 downto 0); --//latch the readout value
 				readout_state <= wait_for_ack_st;
-			
+				
+			when multi_tx_st => 
+				tx_rdy_o <= '1';
+				data_readout <= '1';
+				readout_state <= wait_for_ack_st;
+				
 			when wait_for_ack_st =>
-				i := 0;
 				--tx_rdy_o <= '0';
 				if tx_ack_i = '1' then
 					readout_state <= idle_st;

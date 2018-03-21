@@ -49,6 +49,7 @@ signal readout_state : readout_state_type;
 signal readout_value 	: std_logic_vector(d_width-1 downto 0);
 signal usb_rdout_counter : std_logic_vector(23 downto 0);
 signal data_readout : std_logic;
+signal fifo_empty_int : std_logic;
 
 begin
 
@@ -58,12 +59,13 @@ begin
 	if rst_i = '1' or tx_ack_i = '1' then
 		rdout_fpga_data_o <= (others=>'0');
 		usb_rdout_counter <= (others=>'0');
+		fifo_empty_int <= '0';
 	elsif falling_edge(usb_slwr_i) then
 		-- data frame readout
 		if data_readout = '1' then
 			if usb_rdout_counter = 0 then
 				rdout_fpga_data_o <= x"DEAD";
-			elsif data_fifo_empty_i = '1' then
+			elsif fifo_empty_int = '1' and data_fifo_empty_i = '1' then
 				rdout_fpga_data_o <= x"BEEF";
 			else
 				rdout_fpga_data_o <= data_fifo_i;
@@ -78,7 +80,7 @@ begin
 				rdout_fpga_data_o <= x"BEEF";
 			end if;
 		end if;
-			
+		fifo_empty_int <= data_fifo_empty_i;
 		usb_rdout_counter <= usb_rdout_counter + 1;
 	end if;
 end process;

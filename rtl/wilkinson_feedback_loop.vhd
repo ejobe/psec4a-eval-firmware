@@ -79,11 +79,11 @@ begin
                                         if (ENABLE_FEEDBACK = '0') then
                                                 internal_DESIRED_DAC_VALUE <= INITIAL_DAC_VALUE;
                                         else
-                                                if ( internal_COUNTER_VALUE_LATCHED > unsigned(DESIRED_COUNT_VALUE) + 4 ) then
+                                                if ( internal_COUNTER_VALUE_LATCHED > unsigned(DESIRED_COUNT_VALUE) + 1000 ) then
                                                         if ( internal_DESIRED_DAC_VALUE < MAXIMUM_DAC_VALUE ) then
                                                                 internal_DESIRED_DAC_VALUE <= internal_DESIRED_DAC_VALUE + 1;
                                                         end if;
-                                                elsif ( internal_COUNTER_VALUE_LATCHED < unsigned(DESIRED_COUNT_VALUE) - 4 ) then
+                                                elsif ( internal_COUNTER_VALUE_LATCHED < unsigned(DESIRED_COUNT_VALUE) - 1000 ) then
                                                         if ( internal_DESIRED_DAC_VALUE > MINIMUM_DAC_VALUE ) then
                                                                 internal_DESIRED_DAC_VALUE <= internal_DESIRED_DAC_VALUE - 1 ;
                                                         end if;

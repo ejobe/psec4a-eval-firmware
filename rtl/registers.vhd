@@ -68,7 +68,7 @@ begin
 		--//programmable static registers
 		registers_io(68) <= x"000002";
 		registers_io(69) <= x"000422";
-		registers_io(72) <= x"000000";  --//readout fifo select
+		registers_io(72) <= x"000000";  --//readout ram select
 		
 		registers_io(78) <= x"000002";  --//how many clock cycles to hold stuff in reset before starting up the adc conversion
 		--registers_io(79) <= x"000010"; --//ramp count --> how many clk cycles to wait for ramp to finish ADC [debugging value]
@@ -82,13 +82,13 @@ begin
 		--// DAC values
 		registers_io(86) <= x"000100";  	--//ROvcp
 		registers_io(87) <= x"000000";  	--//BiasTrigN
-		registers_io(88) <= x"000180";  	--//BiasXfer
-		registers_io(89) <= x"0001AB";  	--//BiasRampBuf
-		registers_io(90) <= x"000200";	--//BiasComp
+		registers_io(88) <= x"000200"; --x"000180";  	--//BiasXfer
+		registers_io(89) <= x"000220"; --x"0001AB";  	--//BiasRampBuf
+		registers_io(90) <= x"000200"; --x"000200";	--//BiasComp
 		registers_io(91) <= x"000100";   --//BiasDllLast  -- p bias
 		registers_io(92) <= x"000100"; 	--//BiasDllFirst -- p bias
-		registers_io(93) <= x"000200"; --x"0001A0";	--//BiasDllp
-		registers_io(94) <= x"000200";--x"000250";	--//BiasDlln
+		registers_io(93) <= x"0001A0"; --x"0001A0";	--//BiasDllp
+		registers_io(94) <= x"000250";--x"000250";	--//BiasDlln
 		registers_io(95) <= x"000000";	--//TrigThresh1
 		registers_io(96) <= x"000000";
 		registers_io(97) <= x"000000";
@@ -97,7 +97,7 @@ begin
 		registers_io(100) <= x"000000";
 		registers_io(101) <= x"000000";
 		registers_io(102) <= x"000000";  --//TrigThresh8
-		registers_io(103) <= x"000210";	--//BiasRampSlope
+		registers_io(103) <= x"000281";	--//BiasRampSlope
 		--//external DAC values		
 		registers_io(104) <= x"008000";	--//Vped
 		registers_io(105) <= x"004000";	--//VresetXfer

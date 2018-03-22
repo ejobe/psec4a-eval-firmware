@@ -43,13 +43,17 @@ architecture rtl of psec4a_core is
 
 signal sw_trig_flag_int : std_logic; --//sw trigger flag transferred to clk_mezz_i
 signal sample_hold_int : std_logic;  --//signal high to hold psec4a sampling
+signal sample_hold_int_reg : std_logic_vector(2 downto 0);  --//signal high to hold psec4a sampling -> on readout clk
+
 signal sample_rdy_int : std_logic; --//flag to restart psec4a sampling
+signal sample_rdy_int_flag_sync : std_logic; --//flag to restart psec4a sampling
 
 signal conv_counter_int : std_logic_vector(15 downto 0) := (others=>'0');
 signal conv_start_count_int : std_logic_vector(15 downto 0);
 --signal rdout_clk_count_int : std_logic_vector(15 downto 0) := x"0008"; --//debugging value
-signal rdout_clk_count_int : std_logic_vector(15 downto 0) := x"0084"; --//132 clk cycles per readout
-signal ramp_length_count_int : std_logic_vector(15 downto 0);
+constant rdout_clk_count_int : std_logic_vector(15 downto 0) := x"0084"; --//132 clk cycles per readout
+--signal ramp_length_count_int : std_logic_vector(15 downto 0);
+constant ramp_length_count_int : std_logic_vector(15 downto 0) := x"004A";
 
 signal rdout_clk_en_int : std_logic;
 signal rdout_clear_int : std_logic;
@@ -143,13 +147,17 @@ dll_start_o <= dll_start_startup_int or dll_start_user_int;
 ----------------------------------------------------------------------------------
 --//PRIMARY SAMPLING and TRANSFER CONTROL NEEDS TO BE CLOCKED w/ clk_mezz_i
 --//cycle through psec4a analog blocks, only handle sw triggers for now
+xSMP_RDY_SYNC : flag_sync
+port map(clkA => clk_reg_i, clkB=> clk_mezz_i, in_clkA=>sample_rdy_int,
+			out_clkB => sample_rdy_int_flag_sync);
+
 proc_sample_hold : process(rst_i, clk_mezz_i, sw_trig_flag_int, sample_rdy_int)
 begin
 	if rst_i = '1' then
 		sample_hold_int <= '0';
-	elsif rising_edge(clk_mezz_i) and sw_trig_flag_int = '1' then
+	elsif rising_edge(clk_mezz_i) and sw_trig_flag_int = '1' and sample_hold_int = '0' then
 		sample_hold_int <= '1';
-	elsif rising_edge(clk_mezz_i) and sample_rdy_int = '1' then
+	elsif rising_edge(clk_mezz_i) and sample_rdy_int_flag_sync = '1' then
 		sample_hold_int <= '0';
 	end if;
 end process;
@@ -181,10 +189,10 @@ end process;
 --------------
 
 --//sync some control signals from the register interface:
-RAMP_CNT_SYNC : for i in 0 to 15 generate
-	xRAMP_CNT_SYNC : signal_sync
-	port map(clkA=>clk_reg_i, clkB=>clk_i, SignalIn_clkA=> registers_i(79)(i), signalOut_clkB=> ramp_length_count_int(i));
-end generate;
+--RAMP_CNT_SYNC : for i in 0 to 15 generate
+--	xRAMP_CNT_SYNC : signal_sync
+--	port map(clkA=>clk_reg_i, clkB=>clk_i, SignalIn_clkA=> registers_i(79)(i), signalOut_clkB=> ramp_length_count_int(i));
+--end generate;
 
 CONV_START_CNT_SYNC : for i in 0 to 15 generate
 	CONV_START_CNT_SYNC : signal_sync
@@ -221,11 +229,16 @@ begin
 		rdout_token_int <= '0';    --//readout start signal - needs to be high for a single clock cycle to initiate
 		rdout_ram_wr_addr_o <= (others=>'0');
 		
+		sample_hold_int_reg <= (others=>'0');
+		
 		psec4a_next_load_latch_state <= load_latch0_st;
 		psec4a_next_empty_latch_state <= empty_latch2_st;
 		psec4a_conversion_state <= idle_st;
 		
 	elsif falling_edge(clk_i) then
+	
+		sample_hold_int_reg <= sample_hold_int_reg(1 downto 0) & sample_hold_int;
+	
 		case psec4a_conversion_state is
 			
 		when idle_st=>
@@ -256,7 +269,7 @@ begin
 			psec4a_next_load_latch_state <= load_latch0_st;
 			psec4a_next_empty_latch_state <= empty_latch2_st; --//empties in reverse order as load
 
-			if sample_hold_int = '1' then
+			if sample_hold_int_reg(2 downto 1) = "01" then --//only start a conversion on an initiation
 				psec4a_conversion_state <= start_st;
 			else
 				psec4a_conversion_state <= idle_st;
@@ -318,7 +331,7 @@ begin
 			digz_latch_transp <= '0';
 			latch_full <= latch_full;
 			
-			if conv_counter_int > ramp_length_count_int + 3 then
+			if conv_counter_int > ramp_length_count_int + 4 then
 				ramp_o <= '0'; --// ramp charged up
 				ring_osc_en_o <= '0'; --//ro off
 				adc_clear_int <= '0'; --//release adc clear
@@ -327,6 +340,14 @@ begin
 				dig_count := dig_count + 1; --//increment digitized block count
 				psec4a_conversion_state <= psec4a_next_load_latch_state;		
 
+--			elsif conv_counter_int = 3 then			
+--				ramp_o <= '0'; --// release ramp
+--				ring_osc_en_o <= '0'; --//keep ro off
+--				adc_clear_int <= '0'; --//
+--				toggle_latch_decode_en <= '0'; --//disable latch decoder - adc clear released
+--				conv_counter_int <= conv_counter_int + 1;
+--				psec4a_conversion_state <= ramp_st;
+				
 			elsif conv_counter_int = 2 then			
 				ramp_o <= '1'; --//
 				ring_osc_en_o <= '0'; --//keep ro off
@@ -815,6 +836,9 @@ begin
 			rdout_token_int <= '0';
 			rdout_ram_wr_addr_o <= (others=>'0');
 			
+			psec4a_conversion_state <= idle_st;
+			
+		when others=>
 			psec4a_conversion_state <= idle_st;
 			
 		end case;

@@ -49,6 +49,9 @@ signal readout_value 	: std_logic_vector(d_width-1 downto 0);
 signal usb_rdout_counter : std_logic_vector(15 downto 0);
 signal data_readout : std_logic;
 
+constant data_readout_length : std_logic_vector(15 downto 0) := x"0422";
+constant reg_readout_length : std_logic_vector(15 downto 0) := x"0002";
+
 begin
 
 --//this is not optimal firmware here, but it should work
@@ -86,8 +89,8 @@ end process;
 --//readout process, this is on the register clock	
 proc_read : process(rst_i, clk_i, reg_adr_i)
 begin
-	if rst_i = '1' then 
-		tx_rdy_o <= '0'; 								--//tx flag to spi_slave
+	if rst_i = '1' or registers_i(121)(0) = '1' then 
+		tx_rdy_o <= '0'; 								--//tx flag to usb
 		readout_value <= (others=>'0');
 		rdout_length_o <= registers_i(68)(15 downto 0);
 		data_readout <= '0';
@@ -104,10 +107,12 @@ begin
 				--///////////////////////////////////////////////
 				--//if readout register is written, and spi interface is done with last transfer we initiate a transfer:
 				if reg_adr_i = x"47" then
-					rdout_length_o <= registers_i(68)(15 downto 0);
+					--rdout_length_o <= registers_i(68)(15 downto 0);
+					rdout_length_o <= reg_readout_length;
 					readout_state <= single_tx_st;
 				elsif reg_adr_i = x"46" then
-					rdout_length_o <= registers_i(69)(15 downto 0);
+					--rdout_length_o <= registers_i(69)(15 downto 0);
+					rdout_length_o <= data_readout_length;
 					readout_state <= multi_tx_st;
 				else 
 					readout_state <= idle_st;

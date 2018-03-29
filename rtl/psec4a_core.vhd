@@ -53,7 +53,7 @@ signal conv_start_count_int : std_logic_vector(15 downto 0);
 --signal rdout_clk_count_int : std_logic_vector(15 downto 0) := x"0008"; --//debugging value
 constant rdout_clk_count_int : std_logic_vector(15 downto 0) := x"0084"; --//132 clk cycles per readout
 --signal ramp_length_count_int : std_logic_vector(15 downto 0);
-constant ramp_length_count_int : std_logic_vector(15 downto 0) := x"004A";
+constant ramp_length_count_int : std_logic_vector(15 downto 0) := x"0040";
 
 signal rdout_clk_en_int : std_logic;
 signal rdout_clear_int : std_logic;
@@ -331,7 +331,7 @@ begin
 			digz_latch_transp <= '0';
 			latch_full <= latch_full;
 			
-			if conv_counter_int > ramp_length_count_int + 4 then
+			if conv_counter_int > ramp_length_count_int + 20 then
 				ramp_o <= '0'; --// ramp charged up
 				ring_osc_en_o <= '0'; --//ro off
 				adc_clear_int <= '0'; --//release adc clear
@@ -340,13 +340,13 @@ begin
 				dig_count := dig_count + 1; --//increment digitized block count
 				psec4a_conversion_state <= psec4a_next_load_latch_state;		
 
---			elsif conv_counter_int = 3 then			
---				ramp_o <= '0'; --// release ramp
---				ring_osc_en_o <= '0'; --//keep ro off
---				adc_clear_int <= '0'; --//
---				toggle_latch_decode_en <= '0'; --//disable latch decoder - adc clear released
---				conv_counter_int <= conv_counter_int + 1;
---				psec4a_conversion_state <= ramp_st;
+			elsif conv_counter_int = 3  then			
+				ramp_o <= '0'; --// release ramp
+				ring_osc_en_o <= '0'; --//keep ro off
+				adc_clear_int <= '0'; --//
+				toggle_latch_decode_en <= '0'; --//disable latch decoder - adc clear released
+				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= ramp_st;
 				
 			elsif conv_counter_int = 2 then			
 				ramp_o <= '1'; --//
@@ -369,6 +369,15 @@ begin
 				toggle_latch_decode_en <= '0'; 
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= ramp_st;
+			--TEST this hold-off hack seems to work..
+			elsif conv_counter_int < 30  then			
+				ramp_o <= '0'; --// release ramp
+				ring_osc_en_o <= '0'; --//keep ro off
+				adc_clear_int <= '0'; --//
+				toggle_latch_decode_en <= '0'; --//disable latch decoder - adc clear released
+				conv_counter_int <= conv_counter_int + 1;
+				psec4a_conversion_state <= ramp_st;
+			--TEST
 			else
 				ramp_o <= '0'; --// ramp cap charging up
 				ring_osc_en_o <= '1'; --//enable ring oscillator buffer drivers

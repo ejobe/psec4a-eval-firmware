@@ -20,7 +20,7 @@ port(
 	psec4a_d_i				:	in		std_logic_vector(10 downto 0);
 	psec4a_xferadr_o		:	out	std_logic_vector(3 downto 0);
 	psec4a_latchsel_o		:	out	std_logic_vector(3 downto 0);
-	psec4a_ringosc_en_o	:	out	std_logic;
+	psec4a_ringosc_en_o	:	buffer	std_logic;
 	psec4a_ringosc_mon_i	:	in		std_logic;
 	psec4a_trigger_i		:	in		std_logic_vector(7 downto 0);
 	psec4a_compsel_o		:	out	std_logic_vector(2 downto 0);
@@ -306,5 +306,7 @@ port map(
 led_0 <= not global_reset_sig;
 led_1 <= clk_10Hz_sig;
 led_2 <= not usb_start_wr_sig;
+
+debug(2) <= psec4a_ringosc_en_o;
 
 end rtl;

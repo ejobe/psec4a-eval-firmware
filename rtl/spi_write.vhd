@@ -60,7 +60,7 @@ begin
 
 		spi_state <= idle_st;
 	
-	elsif rising_edge(clk_i) and internal_wr = '1' then
+	elsif falling_edge(clk_i) and internal_wr = '1' then
 		
 		case spi_state is
 			

@@ -82,8 +82,8 @@ begin
 		--// DAC values
 		registers_io(86) <= x"000100";  	--//ROvcp
 		registers_io(87) <= x"000000";  	--//BiasTrigN
-		registers_io(88) <= x"000170"; --x"000180";  	--//BiasXfer
-		registers_io(89) <= x"0001AB"; --x"0001AB";  	--//BiasRampBuf
+		registers_io(88) <= x"000200"; --x"000180";  	--//BiasXfer
+		registers_io(89) <= x"0001B0"; --x"0001AB";  	--//BiasRampBuf
 		registers_io(90) <= x"000200"; --x"000200";	--//BiasComp
 		registers_io(91) <= x"000100";   --//BiasDllLast  -- p bias
 		registers_io(92) <= x"000100"; 	--//BiasDllFirst -- p bias
@@ -97,10 +97,10 @@ begin
 		registers_io(100) <= x"000000";
 		registers_io(101) <= x"000000";
 		registers_io(102) <= x"000000";  --//TrigThresh8
-		registers_io(103) <= x"000281";	--//BiasRampSlope
+		registers_io(103) <= x"000200";	--//BiasRampSlope
 		--//external DAC values		
 		registers_io(104) <= x"008000";	--//Vped
-		registers_io(105) <= x"002000";	--//VresetXfer
+		registers_io(105) <= x"002C00";	--//VresetXfer
 
 		registers_io(109) <= x"000001";  --//read register [109]
 		address_o <= x"00";

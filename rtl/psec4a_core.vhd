@@ -331,7 +331,7 @@ begin
 			digz_latch_transp <= '0';
 			latch_full <= latch_full;
 			
-			if conv_counter_int > ramp_length_count_int + 20 then
+			if conv_counter_int > ramp_length_count_int + 10 then
 				ramp_o <= '0'; --// ramp charged up
 				ring_osc_en_o <= '0'; --//ro off
 				adc_clear_int <= '0'; --//release adc clear
@@ -370,7 +370,7 @@ begin
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= ramp_st;
 			--TEST this hold-off hack seems to work..
-			elsif conv_counter_int < 30  then			
+			elsif conv_counter_int < 20 then -- 30  then			
 				ramp_o <= '0'; --// release ramp
 				ring_osc_en_o <= '0'; --//keep ro off
 				adc_clear_int <= '0'; --//

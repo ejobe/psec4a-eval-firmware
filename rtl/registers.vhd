@@ -70,6 +70,7 @@ begin
 		registers_io(69) <= x"000422";
 		registers_io(72) <= x"000000";  --//readout ram select
 		
+		registers_io(77) <= x"000000";  --//mode. 0 = readout all samples. 1 = ping-pong 528 samples each
 		registers_io(78) <= x"000002";  --//how many clock cycles to hold stuff in reset before starting up the adc conversion
 		--registers_io(79) <= x"000010"; --//ramp count --> how many clk cycles to wait for ramp to finish ADC [debugging value]
 		registers_io(79) <= x"00004A";  --//ramp count --> how many clk cycles to wait for ramp to finish ADC

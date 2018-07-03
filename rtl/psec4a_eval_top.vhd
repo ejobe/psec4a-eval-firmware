@@ -172,6 +172,7 @@ port map(
 	clk_reg_i		=> clk_usb_48Mhz,
 	clk_mezz_i		=> clk_mezz_internal,
 	registers_i		=> register_array,
+	psec4a_stat_o	=> readout_register_array(8),
 	dll_start_o		=> psec4a_dllstart_o,
 	xfer_adr_o		=> psec4a_xferadr_o,
 	ramp_o			=> psec4a_rampstart_o,

@@ -16,6 +16,12 @@ use ieee.std_logic_unsigned.all;
 
 use work.defs.all;
 
+---- #control registers:
+--registers_i(124)(0) => sw trigger
+--registers_i(126)(0) => dll reset flag
+
+
+
 entity psec4a_core is
 port(
 	rst_i				:	in		std_logic;
@@ -23,6 +29,8 @@ port(
 	clk_reg_i		: 	in 	std_logic;  --//clock for register stuff
 	clk_mezz_i		:	in		std_logic;  --//clock from mezzanine board on which psec4a is using for sampling
 	registers_i		:	in		register_array_type;
+	
+	psec4a_stat_o	:	out	std_logic_vector(15 downto 0); --//status register
 	
 	dll_start_o		:	out	std_logic; --//psec4a dll reset/enable
 	xfer_adr_o		:	buffer	std_logic_vector(3 downto 0); --//psec4a analog write address
@@ -72,6 +80,9 @@ signal toggle_latch_decode_en : std_logic;
 signal latch_full : std_logic_vector(3 downto 0) := (others=>'0');
 signal latch_sel_int : std_logic_vector(3 downto 0);
 
+signal psec4a_mode : std_logic_vector(1 downto 0) := (others=>'0');
+signal psec4a_buffer : std_logic_vector(1 downto 0) := (others=>'0');
+
 --//psec4a A/D conversion fsm:
 --type psec4a_conversion_state_type is (idle_st, start_st, digitize_st, latch_st, wait_for_rdout_st);
 --signal psec4a_conversion_state : psec4a_conversion_state_type;
@@ -118,6 +129,11 @@ xSW_TRIG_SYNC : flag_sync
 port map(clkA => clk_reg_i, clkB=> clk_mezz_i, in_clkA=>registers_i(124)(0),
 			out_clkB => sw_trig_flag_int);
 
+PSEC4A_MODE_SYNC : for i in 0 to 1 generate
+	xPSEC4A_MODE_SYNC : signal_sync
+		port map(clkA=>clk_reg_i, clkB=>clk_i, SignalIn_clkA=> registers_i(77)(i), signalOut_clkB=> psec4a_mode(i));
+	end generate;
+
 -----------
 --dll handling:			
 -----------
@@ -151,24 +167,29 @@ xSMP_RDY_SYNC : flag_sync
 port map(clkA => clk_reg_i, clkB=> clk_mezz_i, in_clkA=>sample_rdy_int,
 			out_clkB => sample_rdy_int_flag_sync);
 
-proc_sample_hold : process(rst_i, clk_mezz_i, sw_trig_flag_int, sample_rdy_int)
+proc_sample_hold : process(rst_i, clk_mezz_i, sw_trig_flag_int, sample_rdy_int, psec4a_mode)
 begin
 	if rst_i = '1' then
 		sample_hold_int <= '0';
+		psec4a_buffer <= (others=>'0'); 
 	elsif rising_edge(clk_mezz_i) and sw_trig_flag_int = '1' and sample_hold_int = '0' then
+		psec4a_buffer <= psec4a_buffer;
 		sample_hold_int <= '1';
 	elsif rising_edge(clk_mezz_i) and sample_rdy_int_flag_sync = '1' then
+		psec4a_buffer <= psec4a_buffer + 1; --//goto next buffer, only matters if psec4a_mode = 01
 		sample_hold_int <= '0';
 	end if;
 end process;
 
 --cycle through analog transfer blocks
-proc_xfer_adr : process(rst_i, clk_mezz_i, sample_hold_int)
+proc_xfer_adr : process(rst_i, clk_mezz_i, sample_hold_int, psec4a_mode)
 begin
 	if rst_i = '1' then
 		xfer_adr_o(2 downto 0) <= (others=>'0'); --//lower 3 bits in decoder = address bits for analog storage bank
 		xfer_adr_o(3) <='1';  --//MSB in xfer_adr decoder acts as an 'enable'
-	elsif rising_edge(clk_mezz_i) then
+	
+	--//psec4a_mode = 0, write to all samples
+	elsif rising_edge(clk_mezz_i) and psec4a_mode = "00" then
 		--//simple sample and hold for now: if sw trigger asserted, stop sampling once xfer_adr reaches "111"
 		if sample_hold_int = '1' and xfer_adr_o(2 downto 0) = "111" then
 			xfer_adr_o(2 downto 0) <= "111";
@@ -177,6 +198,17 @@ begin
 			xfer_adr_o(2 downto 0) <= xfer_adr_o(2 downto 0) + 1;
 			xfer_adr_o(3) <='1';
 		end if;
+		
+	--//psec4a_mode = 1, ping-pong two buffers of 528 samples
+	elsif rising_edge(clk_mezz_i) and psec4a_mode = "01" then
+		if sample_hold_int = '1' and xfer_adr_o(1 downto 0) = "11" then	
+			xfer_adr_o(2 downto 0) <= psec4a_buffer(0) & "11";
+			xfer_adr_o(3) <= '0';  --//disable xfer addr drivers
+		else
+			xfer_adr_o(2 downto 0) <= psec4a_buffer(0) & (xfer_adr_o(1 downto 0) + 1);
+			xfer_adr_o(3) <='1';
+		end if;
+		
 	end if;
 end process;
 --//////////////////////
@@ -199,7 +231,7 @@ CONV_START_CNT_SYNC : for i in 0 to 15 generate
 	port map(clkA=>clk_reg_i, clkB=>clk_i, SignalIn_clkA=> registers_i(78)(i), signalOut_clkB=> conv_start_count_int(i));
 end generate;
 
-proc_digz_rdout : process(rst_i, clk_i, sample_hold_int)
+proc_digz_rdout : process(rst_i, clk_i, sample_hold_int, psec4a_mode, psec4a_buffer)
 variable dig_count : integer range 0 to 8 := 0;
 variable rdout_count : integer range 0 to 8 := 0;
 
@@ -238,9 +270,9 @@ begin
 	elsif falling_edge(clk_i) then
 	
 		sample_hold_int_reg <= sample_hold_int_reg(1 downto 0) & sample_hold_int;
-	
+		-------------------------------
 		case psec4a_conversion_state is
-			
+		-------------------------------
 		when idle_st=>
 			sample_rdy_int <= '0'; --//flag needs to goes high when ready to start sampling again
 			
@@ -252,7 +284,16 @@ begin
 			--//adc-specific signals
 			dig_count := 0; --//number of ADC cycles (max 8)
 			rdout_count := 0; 
-			comp_sel_o <= "111";
+			
+			if psec4a_mode = "00" then
+				comp_sel_o <= "111";
+			else
+				case psec4a_buffer(0) is 
+					when '0' => comp_sel_o <= "111";
+					when '1' => comp_sel_o <= "011";
+				end case;
+			end if;
+			
 			ramp_o <= '0'; 
 			ring_osc_en_o <= '0';
 			adc_clear_int <= '0';
@@ -591,10 +632,14 @@ begin
 				if latch_full(0) = '1' or latch_full(1) = '1' or latch_full(2) = '1' then
 					psec4a_conversion_state <= psec4a_next_empty_latch_state;
 				
-				--//digitize and readout the other blocks
-				elsif dig_count < 7 then
+				--//digitize and readout the other blocks, if reading out all samples (psec4a_mode = 00)
+				elsif dig_count < 7 and psec4a_mode = "00" then
 					psec4a_conversion_state <= start_st;
 				
+				--//done if reading out all half the samples (psec4a_mode = 01 ])
+				elsif psec4a_mode = "01" then
+					psec4a_conversion_state <= done_st;
+					
 				--//otherwise done w/ complete readout
 				else
 					psec4a_conversion_state <= done_st; --//DONE
@@ -906,5 +951,16 @@ begin
 	end if;
 end process;
 -----
+
+--//assign status register values
+process(rst_i, clk_reg_i)
+begin
+	if rst_i = '1' then
+		psec4a_stat_o <= (others=>'0');
+	elsif rising_edge(clk_reg_i) then
+		psec4a_stat_o(1 downto 0) <= psec4a_buffer;
+	end if;
+end process;
+
 ------------------------------------------------------------------------		
 end rtl;

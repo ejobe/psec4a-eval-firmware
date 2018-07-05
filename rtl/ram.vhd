@@ -42,21 +42,21 @@ USE altera_mf.all;
 ENTITY ram IS
 	PORT
 	(
-		data		: IN STD_LOGIC_VECTOR (10 DOWNTO 0);
+		data		: IN STD_LOGIC_VECTOR (13 DOWNTO 0);
 		rdaddress		: IN STD_LOGIC_VECTOR (10 DOWNTO 0);
 		rdclock		: IN STD_LOGIC ;
 		rden		: IN STD_LOGIC  := '1';
 		wraddress		: IN STD_LOGIC_VECTOR (10 DOWNTO 0);
 		wrclock		: IN STD_LOGIC  := '1';
 		wren		: IN STD_LOGIC  := '0';
-		q		: OUT STD_LOGIC_VECTOR (10 DOWNTO 0)
+		q		: OUT STD_LOGIC_VECTOR (13 DOWNTO 0)
 	);
 END ram;
 
 
 ARCHITECTURE SYN OF ram IS
 
-	SIGNAL sub_wire0	: STD_LOGIC_VECTOR (10 DOWNTO 0);
+	SIGNAL sub_wire0	: STD_LOGIC_VECTOR (13 DOWNTO 0);
 
 
 
@@ -85,8 +85,8 @@ ARCHITECTURE SYN OF ram IS
 	PORT (
 			address_a	: IN STD_LOGIC_VECTOR (10 DOWNTO 0);
 			clock0	: IN STD_LOGIC ;
-			data_a	: IN STD_LOGIC_VECTOR (10 DOWNTO 0);
-			q_b	: OUT STD_LOGIC_VECTOR (10 DOWNTO 0);
+			data_a	: IN STD_LOGIC_VECTOR (13 DOWNTO 0);
+			q_b	: OUT STD_LOGIC_VECTOR (13 DOWNTO 0);
 			rden_b	: IN STD_LOGIC ;
 			wren_a	: IN STD_LOGIC ;
 			address_b	: IN STD_LOGIC_VECTOR (10 DOWNTO 0);
@@ -95,7 +95,7 @@ ARCHITECTURE SYN OF ram IS
 	END COMPONENT;
 
 BEGIN
-	q    <= sub_wire0(10 DOWNTO 0);
+	q    <= sub_wire0(13 DOWNTO 0);
 
 	altsyncram_component : altsyncram
 	GENERIC MAP (
@@ -115,8 +115,8 @@ BEGIN
 		rdcontrol_reg_b => "CLOCK1",
 		widthad_a => 11,
 		widthad_b => 11,
-		width_a => 11,
-		width_b => 11,
+		width_a => 14,
+		width_b => 14,
 		width_byteena_a => 1
 	)
 	PORT MAP (
@@ -167,7 +167,7 @@ END SYN;
 -- Retrieval info: PRIVATE: JTAG_ENABLED NUMERIC "0"
 -- Retrieval info: PRIVATE: JTAG_ID STRING "NONE"
 -- Retrieval info: PRIVATE: MAXIMUM_DEPTH NUMERIC "0"
--- Retrieval info: PRIVATE: MEMSIZE NUMERIC "22528"
+-- Retrieval info: PRIVATE: MEMSIZE NUMERIC "28672"
 -- Retrieval info: PRIVATE: MEM_IN_BITS NUMERIC "0"
 -- Retrieval info: PRIVATE: MIFfilename STRING ""
 -- Retrieval info: PRIVATE: OPERATION_MODE NUMERIC "2"
@@ -187,10 +187,10 @@ END SYN;
 -- Retrieval info: PRIVATE: USE_DIFF_CLKEN NUMERIC "0"
 -- Retrieval info: PRIVATE: UseDPRAM NUMERIC "1"
 -- Retrieval info: PRIVATE: VarWidth NUMERIC "0"
--- Retrieval info: PRIVATE: WIDTH_READ_A NUMERIC "11"
--- Retrieval info: PRIVATE: WIDTH_READ_B NUMERIC "11"
--- Retrieval info: PRIVATE: WIDTH_WRITE_A NUMERIC "11"
--- Retrieval info: PRIVATE: WIDTH_WRITE_B NUMERIC "11"
+-- Retrieval info: PRIVATE: WIDTH_READ_A NUMERIC "14"
+-- Retrieval info: PRIVATE: WIDTH_READ_B NUMERIC "14"
+-- Retrieval info: PRIVATE: WIDTH_WRITE_A NUMERIC "14"
+-- Retrieval info: PRIVATE: WIDTH_WRITE_B NUMERIC "14"
 -- Retrieval info: PRIVATE: WRADDR_ACLR_B NUMERIC "0"
 -- Retrieval info: PRIVATE: WRADDR_REG_B NUMERIC "0"
 -- Retrieval info: PRIVATE: WRCTRL_ACLR_B NUMERIC "0"
@@ -213,11 +213,11 @@ END SYN;
 -- Retrieval info: CONSTANT: RDCONTROL_REG_B STRING "CLOCK1"
 -- Retrieval info: CONSTANT: WIDTHAD_A NUMERIC "11"
 -- Retrieval info: CONSTANT: WIDTHAD_B NUMERIC "11"
--- Retrieval info: CONSTANT: WIDTH_A NUMERIC "11"
--- Retrieval info: CONSTANT: WIDTH_B NUMERIC "11"
+-- Retrieval info: CONSTANT: WIDTH_A NUMERIC "14"
+-- Retrieval info: CONSTANT: WIDTH_B NUMERIC "14"
 -- Retrieval info: CONSTANT: WIDTH_BYTEENA_A NUMERIC "1"
--- Retrieval info: USED_PORT: data 0 0 11 0 INPUT NODEFVAL "data[10..0]"
--- Retrieval info: USED_PORT: q 0 0 11 0 OUTPUT NODEFVAL "q[10..0]"
+-- Retrieval info: USED_PORT: data 0 0 14 0 INPUT NODEFVAL "data[13..0]"
+-- Retrieval info: USED_PORT: q 0 0 14 0 OUTPUT NODEFVAL "q[13..0]"
 -- Retrieval info: USED_PORT: rdaddress 0 0 11 0 INPUT NODEFVAL "rdaddress[10..0]"
 -- Retrieval info: USED_PORT: rdclock 0 0 0 0 INPUT NODEFVAL "rdclock"
 -- Retrieval info: USED_PORT: rden 0 0 0 0 INPUT VCC "rden"
@@ -228,10 +228,10 @@ END SYN;
 -- Retrieval info: CONNECT: @address_b 0 0 11 0 rdaddress 0 0 11 0
 -- Retrieval info: CONNECT: @clock0 0 0 0 0 wrclock 0 0 0 0
 -- Retrieval info: CONNECT: @clock1 0 0 0 0 rdclock 0 0 0 0
--- Retrieval info: CONNECT: @data_a 0 0 11 0 data 0 0 11 0
+-- Retrieval info: CONNECT: @data_a 0 0 14 0 data 0 0 14 0
 -- Retrieval info: CONNECT: @rden_b 0 0 0 0 rden 0 0 0 0
 -- Retrieval info: CONNECT: @wren_a 0 0 0 0 wren 0 0 0 0
--- Retrieval info: CONNECT: q 0 0 11 0 @q_b 0 0 11 0
+-- Retrieval info: CONNECT: q 0 0 14 0 @q_b 0 0 14 0
 -- Retrieval info: GEN_FILE: TYPE_NORMAL ram.vhd TRUE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL ram.inc FALSE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL ram.cmp FALSE

@@ -49,10 +49,18 @@ signal readout_value 	: std_logic_vector(d_width-1 downto 0);
 signal usb_rdout_counter : std_logic_vector(15 downto 0);
 signal data_readout : std_logic;
 
-constant data_readout_length : std_logic_vector(15 downto 0) := x"0422";
+signal data_readout_length : std_logic_vector(15 downto 0) := x"0422"; --not constant, chosen based on readout mode
 constant reg_readout_length : std_logic_vector(15 downto 0) := x"0002";
 
 begin
+
+proc_dat_rdout_length : process(registers_i(77))
+begin
+	case registers_i(77)(0) is
+	when '0' => data_readout_length <= x"0422"; --//full window readout
+	when '1' => data_readout_length <= x"0212"; --//half-window readout (pingpong mode)
+	end case;
+end process;
 
 --//this is not optimal firmware here, but it should work
 proc_usb_read : process(rst_i, usb_slwr_i, tx_rdy_o, tx_ack_i, data_readout)

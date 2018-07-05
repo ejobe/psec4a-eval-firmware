@@ -64,12 +64,13 @@ begin
 		registers_io(124) <= x"000000"; --// sw trigger
 		registers_io(127) <= x"000000"; --// global reset
 			
-		
 		--//programmable static registers
 		registers_io(68) <= x"000002";
 		registers_io(69) <= x"000422";
 		registers_io(72) <= x"000000";  --//readout ram select
 		
+		registers_io(75) <= x"000000";  --//self trigger mode
+		registers_io(76) <= x"0000FF";  --//self trigger channel mask
 		registers_io(77) <= x"000000";  --//mode. 0 = readout all samples. 1 = ping-pong 528 samples each
 		registers_io(78) <= x"000002";  --//how many clock cycles to hold stuff in reset before starting up the adc conversion
 		--registers_io(79) <= x"000010"; --//ramp count --> how many clk cycles to wait for ramp to finish ADC [debugging value]
@@ -90,14 +91,14 @@ begin
 		registers_io(92) <= x"000100"; 	--//BiasDllFirst -- p bias
 		registers_io(93) <= x"0001A0"; --x"0001A0";	--//BiasDllp
 		registers_io(94) <= x"000250";--x"000250";	--//BiasDlln
-		registers_io(95) <= x"000000";	--//TrigThresh1
+		registers_io(95) <= x"000000";	--//TrigThresh1...
 		registers_io(96) <= x"000000";
 		registers_io(97) <= x"000000";
 		registers_io(98) <= x"000000";
 		registers_io(99) <= x"000000";
 		registers_io(100) <= x"000000";
 		registers_io(101) <= x"000000";
-		registers_io(102) <= x"000000";  --//TrigThresh8
+		registers_io(102) <= x"000000";  --//...TrigThresh8
 		registers_io(103) <= x"000200";	--//BiasRampSlope
 		--//external DAC values		
 		registers_io(104) <= x"008000";	--//Vped

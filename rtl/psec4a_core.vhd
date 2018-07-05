@@ -32,6 +32,9 @@ port(
 	
 	psec4a_stat_o	:	out	std_logic_vector(15 downto 0); --//status register
 	
+	trigbits_i		: in	std_logic_vector(7 downto 0); --//self trigger bits
+	trig_for_scaler_o : out std_logic_vector(7 downto 0);
+	
 	dll_start_o		:	out	std_logic; --//psec4a dll reset/enable
 	xfer_adr_o		:	buffer	std_logic_vector(3 downto 0); --//psec4a analog write address
 	ramp_o			:	out	std_logic; --//psec4a ramp toggle
@@ -82,6 +85,8 @@ signal latch_sel_int : std_logic_vector(3 downto 0);
 
 signal psec4a_mode : std_logic_vector(1 downto 0) := (others=>'0');
 signal psec4a_buffer : std_logic_vector(1 downto 0) := (others=>'0');
+
+signal psec4a_internal_trig : std_logic; --//trigger generated from psec4a internal discriminators
 
 --//psec4a A/D conversion fsm:
 --type psec4a_conversion_state_type is (idle_st, start_st, digitize_st, latch_st, wait_for_rdout_st);
@@ -172,9 +177,15 @@ begin
 	if rst_i = '1' then
 		sample_hold_int <= '0';
 		psec4a_buffer <= (others=>'0'); 
+	--//sw trigger:
 	elsif rising_edge(clk_mezz_i) and sw_trig_flag_int = '1' and sample_hold_int = '0' then
 		psec4a_buffer <= psec4a_buffer;
 		sample_hold_int <= '1';
+	--//self-trigger:
+	elsif rising_edge(clk_mezz_i) and psec4a_internal_trig = '1' and sample_hold_int = '0' then
+		psec4a_buffer <= psec4a_buffer;
+		sample_hold_int <= '1';
+	--//
 	elsif rising_edge(clk_mezz_i) and sample_rdy_int_flag_sync = '1' then
 		psec4a_buffer <= psec4a_buffer + 1; --//goto next buffer, only matters if psec4a_mode = 01
 		sample_hold_int <= '0';
@@ -410,7 +421,7 @@ begin
 				toggle_latch_decode_en <= '0'; 
 				conv_counter_int <= conv_counter_int + 1;
 				psec4a_conversion_state <= ramp_st;
-			--TEST this hold-off hack seems to work..
+			--TEST this hold-off hack seems to work...[add more details]
 			elsif conv_counter_int < 20 then -- 30  then			
 				ramp_o <= '0'; --// release ramp
 				ring_osc_en_o <= '0'; --//keep ro off
@@ -962,5 +973,17 @@ begin
 	end if;
 end process;
 
+--//internal trigger block:
+xPSEC4A_SELF_TRIGGER : entity work.psec4a_trigger
+port map(
+	rst_i				=> rst_i,
+	clk_reg_i		=> clk_reg_i,
+	clk_mezz_i		=> clk_mezz_i,
+	registers_i		=> registers_i,
+	trigger_i		=> trigbits_i,
+	clear_trigger_i=> sample_rdy_int_flag_sync,
+	trigger_o  		=> psec4a_internal_trig,
+	trigger_patt_o	=> open,
+	trigger_scaler_o => trig_for_scaler_o);
 ------------------------------------------------------------------------		
 end rtl;

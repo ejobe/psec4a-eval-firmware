@@ -33,7 +33,7 @@ end psec4a_data_ram;
 
 architecture rtl of psec4a_data_ram is
 
-type ram_data_type is array(psec4a_num_channels-1 downto 0) of std_logic_vector(psec4a_num_adc_bits-1 downto 0);
+type ram_data_type is array(psec4a_num_channels-1 downto 0) of std_logic_vector(13 downto 0);
 signal ram_out_data : ram_data_type;
 
 signal ram_wr_addr : std_logic_vector(10 downto 0) := (others=>'0');
@@ -60,14 +60,14 @@ process(rst_i, registers_i(72))
 begin
 case registers_i(72)(3 downto 0) is
 	when x"0" => ram_rd_en <= x"00"; ram_rd_data_o <= (others=>'0'); 
-	when x"1" => ram_rd_en <= x"01"; ram_rd_data_o <= "00000" & ram_out_data(0); 
-	when x"2" => ram_rd_en <= x"02"; ram_rd_data_o <= "00000" & ram_out_data(1); 
-	when x"3" => ram_rd_en <= x"04"; ram_rd_data_o <= "00000" & ram_out_data(2); 
-	when x"4" => ram_rd_en <= x"08"; ram_rd_data_o <= "00000" & ram_out_data(3); 
-	when x"5" => ram_rd_en <= x"10"; ram_rd_data_o <= "00000" & ram_out_data(4); 
-	when x"6" => ram_rd_en <= x"20"; ram_rd_data_o <= "00000" & ram_out_data(5); 
-	when x"7" => ram_rd_en <= x"40"; ram_rd_data_o <= "00000" & ram_out_data(6); 
-	when x"8" => ram_rd_en <= x"80"; ram_rd_data_o <= "00000" & ram_out_data(7); 
+	when x"1" => ram_rd_en <= x"01"; ram_rd_data_o <= "00" & ram_out_data(0); 
+	when x"2" => ram_rd_en <= x"02"; ram_rd_data_o <= "00" & ram_out_data(1); 
+	when x"3" => ram_rd_en <= x"04"; ram_rd_data_o <= "00" & ram_out_data(2); 
+	when x"4" => ram_rd_en <= x"08"; ram_rd_data_o <= "00" & ram_out_data(3); 
+	when x"5" => ram_rd_en <= x"10"; ram_rd_data_o <= "00" & ram_out_data(4); 
+	when x"6" => ram_rd_en <= x"20"; ram_rd_data_o <= "00" & ram_out_data(5); 
+	when x"7" => ram_rd_en <= x"40"; ram_rd_data_o <= "00" & ram_out_data(6); 
+	when x"8" => ram_rd_en <= x"80"; ram_rd_data_o <= "00" & ram_out_data(7); 
 	when others=> ram_rd_en <= x"00"; ram_rd_data_o <= (others=>'0'); 
 end case; 
 end process;
@@ -76,7 +76,7 @@ end process;
 RX_DATA_RAM : for i in 0 to psec4a_num_channels-1 generate
 	xPSEC4A_DATA_RAM : entity work.ram
 	port map(	
-		data		=> psec4a_dat_i,
+		data		=> '0' & registers_i(12)(0) & '0' & psec4a_dat_i, --//buffer number saved w/ data
 		rdaddress	=> ram_rd_addr_i,
 		rdclock	=> ram_clk_i,
 		rden		=> ram_rd_en(i),

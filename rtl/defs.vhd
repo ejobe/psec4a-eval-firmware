@@ -25,8 +25,8 @@ package defs is
 constant define_register_size : 	integer := 32;
 constant define_address_size	:	integer := 8;
 
-constant firmware_version 	: std_logic_vector(define_register_size-define_address_size-1 downto 0) := x"000001";
-constant firmware_date 		: std_logic_vector(define_register_size-define_address_size-1 downto 0) := x"000" & x"3" & x"05";
+constant firmware_version 	: std_logic_vector(define_register_size-define_address_size-1 downto 0) := x"000002";
+constant firmware_date 		: std_logic_vector(define_register_size-define_address_size-1 downto 0) := x"000" & x"7" & x"05";
 constant firmware_year 		: std_logic_vector(define_register_size-define_address_size-1 downto 0) := x"000" & x"7e2";
 
 constant psec4a_dac_bits : integer := 10;

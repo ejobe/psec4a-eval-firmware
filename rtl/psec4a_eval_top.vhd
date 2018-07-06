@@ -62,6 +62,7 @@ signal clk_100kHz_sig 	:	std_logic; --//PLL output
 signal clk_1Hz_sig		: 	std_logic;
 signal clk_10Hz_sig		:	std_logic;
 signal clk_usb_48Mhz		:	std_logic;
+signal clk_reg				:	std_logic;
 signal clk_mezz_internal:  std_logic;
 --signal psec4a_write_clk_buf:  std_logic;
 
@@ -92,6 +93,11 @@ signal refresh_clk_10Hz				: std_logic := '0';
 signal refresh_clk_counter_10Hz 	: std_logic_vector(19 downto 0);
 signal REFRESH_CLK_MATCH_1HZ		: std_logic_vector(19 downto 0) := x"186A0";
 signal REFRESH_CLK_MATCH_10HZ		: std_logic_vector(19 downto 0) := x"02710";
+
+--//1hz pulse on the register clock
+signal refresh_clk_reg_1Hz				: std_logic := '0';
+signal refresh_clk_reg_counter_1Hz 	: std_logic_vector(27 downto 0);
+signal REFRESH_CLK_REG_MATCH_1HZ		: std_logic_vector(27 downto 0) := x"2DC6C00";
 
 signal readout_register_array : read_register_array_type;
 --//---------------------------------------------------------------------------
@@ -140,7 +146,26 @@ begin
 		end case;
 	end if;
 end process;
-	
+
+--//refresh pulse for scalers:
+proc_make_refresh_pulse_2 : process(clk_reg)
+begin
+	if rising_edge(clk_reg) then			
+		if refresh_clk_reg_1Hz = '1' then
+			refresh_clk_reg_counter_1Hz <= (others=>'0');
+		else
+			refresh_clk_reg_counter_1Hz <= refresh_clk_reg_counter_1Hz + 1;
+		end if;
+		--//pulse refresh when refresh_clk_counter = REFRESH_CLK_MATCH
+		case refresh_clk_reg_counter_1Hz is
+			when REFRESH_CLK_REG_MATCH_1HZ =>
+				refresh_clk_reg_1Hz <= '1';
+			when others =>
+				refresh_clk_reg_1Hz <= '0';
+		end case;
+	end if;
+end process;
+
 xPLL0 : entity work.pll0
 port map(
 	areset => '0', inclk0 => master_clock,
@@ -159,17 +184,20 @@ clk_mezz_internal <= psec4a_write_clk_i;
 --	areset	=> '0',	inclk0	=> USB_IFCLK,
 --	c0			=> clk_usb_48Mhz,	locked	=> open);
 
+--//assign register clock:
+clk_reg <= clk_usb_48Mhz;	
+--//
 clk_usb_48Mhz <= USB_IFCLK;
 USB_RDY(1) <= usb_slwr_sig;
 
 psec4a_read_clk_o <= psec4a_read_clk;
-psec4a_chansel_o <= psec4a_chan_sel;
+psec4a_chansel_o  <= psec4a_chan_sel;
 
 xPSEC4A_CNTRL : entity work.psec4a_core 
 port map(
 	rst_i				=> global_reset_sig,
 	clk_i				=> clk_25MHz_sig,
-	clk_reg_i		=> clk_usb_48Mhz,
+	clk_reg_i		=> clk_reg,
 	clk_mezz_i		=> clk_mezz_internal,
 	registers_i		=> register_array,
 	psec4a_stat_o	=> readout_register_array(8),
@@ -213,7 +241,7 @@ port map(
 
 xUSB : entity work.usb_32bit
 port map(
-	CORE_CLK				=> clk_usb_48Mhz, --clk_25MHz_sig,
+	CORE_CLK				=> clk_reg, --clk_25MHz_sig,
 	USB_IFCLK			=> clk_usb_48Mhz,	
 	USB_RESET    		=> global_reset_sig,  
 	USB_BUS  			=> USB_FD,  
@@ -238,7 +266,7 @@ xREGISTERS : entity work.registers
 port map(
 		rst_powerup_i	=> reset_pwrup_sig,	
 		rst_i				=> global_reset_sig,
-		clk_i				=> clk_usb_48Mhz, --clk_25MHz_sig,
+		clk_i				=> clk_reg, --clk_25MHz_sig,
 		write_reg_i		=> usb_instr_sig,
 		write_rdy_i		=> usb_instr_rdy_sig,
 		read_reg_o 		=> readout_reg_sig,
@@ -264,7 +292,7 @@ port map(
 xRDOUT_CNTRL : entity work.rdout_controller_v3 
 	port map(
 		rst_i					=> global_reset_sig,	
-		clk_i					=> clk_usb_48Mhz, --clk_25MHz_sig,					
+		clk_i					=> clk_reg, --clk_25MHz_sig,					
 		rdout_reg_i			=> readout_reg_sig,	
 		reg_adr_i			=> reg_addr_sig,	
 		registers_i			=> register_array,	   
@@ -282,7 +310,7 @@ port map(
 	rst_i				=> global_reset_sig,
 	registers_i		=> register_array,
 	write_i			=> refresh_clk_1Hz,
-	psec4a_ro_bit_i => psec4a_ringosc_mon_i, --//ring oscillator divder bit
+	psec4a_ro_bit_i => psec4a_ringosc_mon_i, --//ring oscillator divider bit
 	psec4a_ro_count_lo_o => readout_register_array(0),
 	psec4a_ro_count_hi_o => readout_register_array(1),
 	serial_clk_o	=> psec4a_sclk_o,

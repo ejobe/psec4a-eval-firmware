@@ -52,7 +52,7 @@ begin
 
 proc_get_dac_values : process(rst_i, clk_i)
 begin
-	if rising_edge(clk_i) then
+	if falling_edge(clk_i) then
 		enable_rovcp_feedback <= registers_i(82)(0);
 		target_ro_counter_val <= registers_i(81)(15 downto 0) & registers_i(80)(15 downto 0);
 

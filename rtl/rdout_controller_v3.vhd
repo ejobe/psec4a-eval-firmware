@@ -57,8 +57,8 @@ begin
 proc_dat_rdout_length : process(registers_i(77))
 begin
 	case registers_i(77)(0) is
-	when '0' => data_readout_length <= x"0422"; --//full window readout
-	when '1' => data_readout_length <= x"0212"; --//half-window readout (pingpong mode)
+	when '0' => data_readout_length <= x"0422"; --//full window readout: 1056 samples
+	when '1' => data_readout_length <= x"0212"; --//half-window readout (pingpong mode: 528 sample window)
 	end case;
 end process;
 

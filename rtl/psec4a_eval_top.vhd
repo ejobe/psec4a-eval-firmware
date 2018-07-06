@@ -148,23 +148,23 @@ begin
 end process;
 
 --//refresh pulse for scalers:
-proc_make_refresh_pulse_2 : process(clk_reg)
-begin
-	if rising_edge(clk_reg) then			
-		if refresh_clk_reg_1Hz = '1' then
-			refresh_clk_reg_counter_1Hz <= (others=>'0');
-		else
-			refresh_clk_reg_counter_1Hz <= refresh_clk_reg_counter_1Hz + 1;
-		end if;
-		--//pulse refresh when refresh_clk_counter = REFRESH_CLK_MATCH
-		case refresh_clk_reg_counter_1Hz is
-			when REFRESH_CLK_REG_MATCH_1HZ =>
-				refresh_clk_reg_1Hz <= '1';
-			when others =>
-				refresh_clk_reg_1Hz <= '0';
-		end case;
-	end if;
-end process;
+--proc_make_refresh_pulse_2 : process(clk_reg)
+--begin
+--	if rising_edge(clk_reg) then			
+--		if refresh_clk_reg_1Hz = '1' then
+--			refresh_clk_reg_counter_1Hz <= (others=>'0');
+--		else
+--			refresh_clk_reg_counter_1Hz <= refresh_clk_reg_counter_1Hz + 1;
+--		end if;
+--		--//pulse refresh when refresh_clk_counter = REFRESH_CLK_MATCH
+--		case refresh_clk_reg_counter_1Hz is
+--			when REFRESH_CLK_REG_MATCH_1HZ =>
+--				refresh_clk_reg_1Hz <= '1';
+--			when others =>
+--				refresh_clk_reg_1Hz <= '0';
+--		end case;
+--	end if;
+--end process;
 
 xPLL0 : entity work.pll0
 port map(
